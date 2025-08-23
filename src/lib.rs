@@ -104,7 +104,7 @@ mod tests {
         builder.register_dep("test-b", Box::new(test_service_b));
         builder.register_dep("some-service", Box::new(some_service));
         let deps = builder.build();
-        let mut di = Container::new(deps);
+        let di = Container::new(deps);
 
         assert_eq!("Some-value-a".to_string(), di.get_test_service().some_told());
         assert_eq!("Some-value-b".to_string(), di.get_test_service_b().some_told());
