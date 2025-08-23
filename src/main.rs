@@ -1,6 +1,5 @@
 mod di;
 
-use std::any::Any;
 use di::impls::{DependencyBuilder};
 
 fn main() {

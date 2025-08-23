@@ -38,6 +38,7 @@ impl IDependencyBuilder for DependencyBuilder {
     }
 }
 
+#[derive(Default)]
 pub struct Container {
     deps: HashMap<String, Box<dyn Any>>
 }
