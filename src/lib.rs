@@ -82,5 +82,6 @@ mod tests {
 
         assert_eq!("Some-value-a".to_string(), di.get_test_service().some_told());
         assert_eq!("Some-value-b".to_string(), di.get_test_service_b().some_told());
+        assert_eq!(2, di.deps.len())
     }
 }
