@@ -3,9 +3,6 @@ mod di;
 use crate::di::iface::IContainer;
 use crate::di::impls::Container;
 
-use std;
-use std::any::Any;
-
 trait TestService{
     fn some_told(&self) -> String;
 }
