@@ -1,10 +1,10 @@
 mod di;
 
 use crate::di::iface::IContainer;
+use crate::di::impls::Container;
 
 use std;
 use std::any::Any;
-use std::collections::HashMap;
 
 trait TestService{
     fn some_told(&self) -> String;
@@ -33,14 +33,7 @@ trait ProjectContainer : IContainer {
     fn get_test_service_b(&self) -> &dyn TestService;
 }
 
-#[derive(Default)]
-struct TestContainer {
-    deps : HashMap<String, Box<dyn Any>>
-}
-
-impl IContainer for TestContainer {}
-
-impl ProjectContainer for TestContainer {
+impl ProjectContainer for Container {
     fn get_test_service(&self) -> &TestServiceStruct {
         let res = self.deps.get("test");
         if let Some(test_service_ptr) = res {
@@ -77,8 +70,7 @@ mod tests {
         builder.register_dep("test", Box::new(test_service));
         builder.register_dep("test-b", Box::new(test_service_b));
         let deps = builder.build();
-        let mut di = TestContainer::default();
-        di.deps = deps;
+        let mut di = Container::new(deps);
 
         assert_eq!("Some-value-a".to_string(), di.get_test_service().some_told());
         assert_eq!("Some-value-b".to_string(), di.get_test_service_b().some_told());

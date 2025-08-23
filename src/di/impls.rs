@@ -40,7 +40,7 @@ impl IDependencyBuilder for DependencyBuilder {
 
 #[derive(Default)]
 pub struct Container {
-    deps: HashMap<String, Box<dyn Any>>
+    pub deps: HashMap<String, Box<dyn Any>>
 }
 
 impl Container {
