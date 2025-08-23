@@ -109,6 +109,6 @@ mod tests {
         assert_eq!("Some-value-a".to_string(), di.get_test_service().some_told());
         assert_eq!("Some-value-b".to_string(), di.get_test_service_b().some_told());
         assert_eq!("Some-service-value".to_string(), di.get_some_service().some_service_test());
-        assert_eq!(2, di.deps.len())
+        assert_eq!(3, di.deps.len())
     }
 }
