@@ -6,6 +6,10 @@ pub struct DependencyBuilder {
     deps: HashMap<String, Box<dyn Any>>
 }
 
+pub enum Dependency<T>{
+    Ok(T)
+}
+
 impl DependencyBuilder {
     pub fn new() -> Self {
         Self {
