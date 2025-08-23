@@ -30,7 +30,7 @@ impl TestService for TestServiceStruct {
 
 trait ProjectContainer : IContainer {
     fn get_test_service(&self) -> &TestServiceStruct;
-    fn get_test_service_b(&self) -> &TestServiceStruct;
+    fn get_test_service_b(&self) -> &dyn TestService;
 }
 
 #[derive(Default)]
@@ -52,7 +52,7 @@ impl ProjectContainer for TestContainer {
         panic!("Нет зависимости в di test_service")
     }
 
-    fn get_test_service_b(&self) -> &TestServiceStruct {
+    fn get_test_service_b(&self) -> &dyn TestService {
         let res = self.deps.get("test-b");
         if let Some(test_service_ptr) = res {
             let a = test_service_ptr.downcast_ref::<TestServiceStruct>();
