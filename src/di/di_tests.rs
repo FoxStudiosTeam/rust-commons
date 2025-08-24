@@ -5,6 +5,24 @@ trait TestService{
     fn some_told(&self) -> String;
 }
 
+struct DualServiceTestStruct {
+    value : String
+}
+
+impl DualServiceTestStruct {
+    fn new (value: String) -> Self {
+        Self{
+            value
+        }
+    }
+}
+
+impl TestService for DualServiceTestStruct {
+    fn some_told(&self) -> String {
+        self.value.clone()
+    }
+}
+
 struct TestServiceStruct {
     value : String
 }
@@ -67,14 +85,14 @@ impl ProjectContainer for Container {
     fn get_test_service_b(&self) -> &dyn TestService {
         let res = self.deps.get("test-b");
         if let Some(test_service_ptr) = res {
-            let a = test_service_ptr.downcast_ref::<TestServiceStruct>();
+            let a = test_service_ptr.downcast_ref::<DualServiceTestStruct>();
             if let Some(test_service) = a {
                 return test_service
             }
         }
         panic!("Нет зависимости в di test_service_b")
     }
-
+    
     fn get_some_service(&self) -> &dyn SomeService {
         let rs = self.deps.get("some-service");
         if let Some(some_service_heap_ptr) = rs {
@@ -95,7 +113,7 @@ mod tests {
     #[test]
     fn test_di() {
         let test_service = TestServiceStruct::new("Some-value-a".to_string());
-        let test_service_b = TestServiceStruct::new("Some-value-b".to_string());
+        let test_service_b = DualServiceTestStruct::new("Some-value-b".to_string());
         let some_service = SomeServiceStruct::new("Some-service-value".to_string());
         let mut builder = DependencyBuilder::new();
         builder.register_dep("test", Box::new(test_service));
@@ -103,7 +121,7 @@ mod tests {
         builder.register_dep("some-service", Box::new(some_service));
         let deps = builder.build();
         let di = Container::new(deps);
-
+        
         assert_eq!("Some-value-a".to_string(), di.get_test_service().some_told());
         assert_eq!("Some-value-b".to_string(), di.get_test_service_b().some_told());
         assert_eq!("Some-service-value".to_string(), di.get_some_service().some_service_test());
