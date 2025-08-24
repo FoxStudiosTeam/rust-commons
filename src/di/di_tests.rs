@@ -1,6 +1,5 @@
 use std::any::Any;
 use std::collections::HashMap;
-use std::ops::Deref;
 
 trait TestService{
     fn some_told(&self) -> String;
