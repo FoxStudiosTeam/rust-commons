@@ -1,5 +1,6 @@
-use crate::di::iface::IContainer;
-use crate::di::impls::Container;
+use std::any::Any;
+use std::collections::HashMap;
+use std::ops::Deref;
 
 trait TestService{
     fn some_told(&self) -> String;
@@ -63,11 +64,24 @@ impl SomeService for SomeServiceStruct {
     }
 }
 
-trait ProjectContainer : IContainer {
+trait ProjectContainer {
     fn get_test_service(&self) -> &TestServiceStruct;
-    fn get_test_service_b(&self) -> &dyn TestService;
+    fn get_test_service_b(&self) -> Box<dyn TestService>;
 
-    fn get_some_service(&self) -> &dyn SomeService;
+    fn get_some_service(&self) -> &Box<dyn SomeService>;
+}
+
+#[derive(Default)]
+pub struct Container {
+    pub deps: HashMap<String, Box<dyn Any>>
+}
+
+impl Container {
+    pub fn new(hash_map: HashMap<String, Box<dyn Any>>) -> Self {
+        Self {
+            deps: hash_map
+        }
+    }
 }
 
 impl ProjectContainer for Container {
@@ -82,28 +96,26 @@ impl ProjectContainer for Container {
         panic!("Нет зависимости в di test_service")
     }
 
-    fn get_test_service_b(&self) -> &dyn TestService {
-        let res = self.deps.get("test-b");
-        if let Some(test_service_ptr) = res {
-            let a = test_service_ptr.downcast_ref::<DualServiceTestStruct>();
-            if let Some(test_service) = a {
-                return test_service
+    fn get_test_service_b(&self) -> Box<dyn TestService> {
+        let res = self.deps.get("test-b").expect("Нет зависимости в di test_service_b");
+        if let Some(test_service_ptr) = res.downcast_ref::<Box<dyn TestService>>() {
+            test_service_ptr.clone();
+        }
+        panic!("Неверный тип для зависимости test-b")
+    }
+    
+    fn get_some_service(&self) -> &Box<dyn SomeService> {
+        let res = self.deps.get("some-service");
+        if let Some(rs) = res {
+            if let Some(rr) = rs.downcast_ref::<Box<dyn SomeService>>() {
+                return rr
             }
         }
         panic!("Нет зависимости в di test_service_b")
     }
-    
-    fn get_some_service(&self) -> &dyn SomeService {
-        let rs = self.deps.get("some-service");
-        if let Some(some_service_heap_ptr) = rs {
-            let ptr = some_service_heap_ptr.downcast_ref::<SomeServiceStruct>();
-            if let Some(some_service_ptr) = ptr {
-                return some_service_ptr
-            }
-        }
-        panic!("Нет зависимости в di some_service")
-    }
 }
+
+
 
 #[cfg(test)]
 mod tests {
@@ -116,12 +128,12 @@ mod tests {
         let test_service_b = DualServiceTestStruct::new("Some-value-b".to_string());
         let some_service = SomeServiceStruct::new("Some-service-value".to_string());
         let mut builder = DependencyBuilder::new();
-        builder.register_dep("test", Box::new(test_service));
-        builder.register_dep("test-b", Box::new(test_service_b));
-        builder.register_dep("some-service", Box::new(some_service));
+        builder.register_dep("test", Box::new(Box::new(test_service) as Box<dyn TestService>));
+        builder.register_dep("test-b", Box::new(Box::new(test_service_b) as Box<dyn TestService>));
+        builder.register_dep("some-service", Box::new(Box::new(some_service) as Box<dyn SomeService>));
         let deps = builder.build();
         let di = Container::new(deps);
-        
+
         assert_eq!("Some-value-a".to_string(), di.get_test_service().some_told());
         assert_eq!("Some-value-b".to_string(), di.get_test_service_b().some_told());
         assert_eq!("Some-service-value".to_string(), di.get_some_service().some_service_test());
