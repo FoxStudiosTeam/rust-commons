@@ -1,8 +1,8 @@
-use dao_generator::prelude::*;
+use rust_commons::schema_reader::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let schema = dao_generator::prelude::Schema::from_dir("./schemas")?;
+    let schema = rust_commons::prelude::Schema::from_dir("./schemas")?;
     generate(&schema)?;
     Ok(())
 }
