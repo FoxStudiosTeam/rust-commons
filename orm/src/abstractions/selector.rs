@@ -84,40 +84,42 @@ where
 
 
 
-pub struct TxSelectorInteractions<'e, DB, E, T>
-where
-    T: TableSelector,
-    DB: OrmDB,
-{
-    pub(crate) _g: PhantomData<DB>,
-    pub(crate) _t: PhantomData<T>,
-    pub(crate) executor: &'e E
-}
+// pub struct TxSelectorInteractions<'e, DB, T>
+// where
+//     T: TableSelector,
+//     DB: OrmDB,
+// {
+//     pub(crate) _g: PhantomData<DB>,
+//     pub(crate) _t: PhantomData<T>,
+//     pub(crate) executor: &'e crate::prelude::TXInner<'e, DB>
+// }
 
 
-impl<'e, DB, E, T> TxSelectorInteractions<'e, DB, E, T>
-where
-    T: TableSelector + ModelOps<DB> + for<'r> FromRow<'r, <DB as sqlx::Database>::Row>,
-    DB: OrmDB,
-    for<'a> <DB as sqlx::Database>::Arguments<'a>: IntoArguments<'a, DB>,
-    &'e E: Executor<'e, Database = DB>,
-{
-    pub async fn insert(&self, data: T) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(data.insert(self.executor).await?)
-    }
-    pub async fn select(&self) -> Result<Vec<T>, Box<dyn std::error::Error>> {
-        Ok(T::select(self.executor).await?)
-    }
-    pub async fn select_by_pk(&self, key: T::TypePK) -> Result<Option<T>, Box<dyn std::error::Error>> {
-        Ok(T::select_by_pk(key, self.executor).await?)
-    }
-    pub async fn delete(&self) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(T::delete(self.executor).await?)
-    }
-    pub async fn delete_by_pk(&self, key: T::TypePK) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(T::delete_by_pk(key, self.executor).await?)
-    }
-    pub async fn count(&self) -> Result<i64, Box<dyn std::error::Error>> {
-        Ok(T::count(self.executor).await?)
-    }
-}
+// impl<'e, DB, T> TxSelectorInteractions<'e, DB, T>
+// where
+//     T: TableSelector + ModelOps<DB> + for<'r> FromRow<'r, <DB as sqlx::Database>::Row>,
+//     DB: OrmDB,
+//     for<'a> <DB as sqlx::Database>::Arguments<'a>: IntoArguments<'a, DB>,
+//     &'e mut <DB as sqlx::Database>::Connection: Executor<'e, Database = DB>,
+// {
+//     pub async fn insert(self, data: T) -> Result<(), Box<dyn std::error::Error>> {
+//         let mut e = &mut **self.executor.inner.borrow_mut();
+//         let res = data.insert(e).await?;
+//         Ok(res)
+//     }
+//     pub async fn select(&self) -> Result<Vec<T>, Box<dyn std::error::Error>> {
+//         Ok(T::select(self.executor).await?)
+//     }
+//     pub async fn select_by_pk(&self, key: T::TypePK) -> Result<Option<T>, Box<dyn std::error::Error>> {
+//         Ok(T::select_by_pk(key, self.executor).await?)
+//     }
+//     pub async fn delete(&self) -> Result<(), Box<dyn std::error::Error>> {
+//         Ok(T::delete(self.executor).await?)
+//     }
+//     pub async fn delete_by_pk(&self, key: T::TypePK) -> Result<(), Box<dyn std::error::Error>> {
+//         Ok(T::delete_by_pk(key, self.executor).await?)
+//     }
+//     pub async fn count(&self) -> Result<i64, Box<dyn std::error::Error>> {
+//         Ok(T::count(self.executor).await?)
+//     }
+// }

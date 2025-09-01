@@ -4,24 +4,29 @@ use sqlx::Executor;
 
 use crate::prelude::{Orm, OrmDB, SelectorInteractions};
 
-use crate::prelude::tables::{
-    Users,
+use crate::generated::{
+    {{#each tables}}
+    {{snakeToCamel name}},
+    {{/each}}
 };
 
 pub trait DBTables<DB, E> 
 where
     DB: OrmDB,
 {
-    fn users<'e>(&'e self) -> SelectorInteractions<'e, DB, E, Users>
+    {{#each tables}}
+    fn {{name}}<'e>(&'e self) -> SelectorInteractions<'e, DB, E, {{snakeToCamel name}}>
     where 
         &'e E: Executor<'e, Database = DB>;
+    {{/each}}
 }
 
 impl<DB, E> DBTables<DB, E> for Orm<E>
 where
     DB: OrmDB,
 {
-    fn users<'e>(&'e self) -> SelectorInteractions<'e, DB, E, Users>
+    {{#each tables}}
+    fn {{name}}<'e>(&'e self) -> SelectorInteractions<'e, DB, E, {{snakeToCamel name}}>
     where
         &'e E: Executor<'e, Database = DB>,
     {
@@ -31,6 +36,5 @@ where
             executor: &self.executor,
         }
     }
+    {{/each}}
 }
-
-

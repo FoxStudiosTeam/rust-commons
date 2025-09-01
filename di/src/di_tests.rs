@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use std::ops::Deref;
 
 trait TestService{
@@ -119,7 +119,7 @@ impl ProjectContainer for Container {
 
 #[cfg(test)]
 mod tests {
-    use crate::di::impls::DependencyBuilder;
+    use crate::impls::DependencyBuilder;
     use super::*;
 
     #[test]

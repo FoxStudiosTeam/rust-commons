@@ -1,0 +1,5 @@
+// THIS FILE IS GENERATED, NOT FOR MANUAL EDIT
+{{#each tables}}
+pub mod {{name}};
+pub use {{name}}::{{snakeToCamel name}};
+{{/each}}

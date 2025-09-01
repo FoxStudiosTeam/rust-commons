@@ -1,6 +1,6 @@
 use std::any::Any;
-use std::collections::HashMap;
-use crate::di::iface::{IContainer, IDependencyBuilder};
+use hashbrown::HashMap;
+use crate::iface::{IContainer, IDependencyBuilder};
 
 pub struct DependencyBuilder {
     deps: HashMap<String, Box<dyn Any>>

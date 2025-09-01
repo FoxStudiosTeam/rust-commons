@@ -1,0 +1,115 @@
+// THIS FILE IS GENERATED, NOT FOR MANUAL EDIT
+use sqlx::{Executor, FromRow, Postgres};
+
+use crate::{prelude::{ModelOps, SqlBuilder, TableSelector}};
+
+#[derive(Clone,Debug)]
+#[derive(FromRow)]
+pub struct {{snakeToCamel table.name}} {
+    {{#each table.fields}}
+    pub {{name}}: {{type}},
+    {{/each}}
+}
+
+impl TableSelector for {{snakeToCamel table.name}} {
+    const TABLE_NAME: &'static str = "{{table.name}}";
+    const TABLE_SCHEMA: &'static str = "{{table.schema}}";
+    type TypePK = {{#each table.fields}}{{#if isPrimary}}{{type}}{{/if}}{{/each}};
+    fn pk_column() -> &'static str {
+        {{#each table.fields}}
+        {{#if isPrimary}}
+        "{{name}}"
+        {{/if}}
+        {{/each}}
+    }
+    fn columns() -> &'static [&'static str] {
+        &[
+            {{#each table.fields}}
+            "{{name}}", 
+            {{/each}}
+        ]
+    }
+}
+{{#each dbs}}
+
+#[cfg(feature="{{feature}}")]
+impl ModelOps<{{db}}> for {{snakeToCamel ../table.name}} 
+{
+    async fn insert<'e, E>(&self, exec: E) -> Result<(), sqlx::Error>
+    where
+        E: Executor<'e, Database = {{db}}>,
+        for<'q> <{{db}} as sqlx::Database>::Arguments<'q>: Default + sqlx::IntoArguments<'q, {{db}}>,
+    {
+        let sql = SqlBuilder::<Postgres, Self>::insert_on_conflict_update();
+        sqlx::query(&sql)
+            {{#each ../table.fields}}
+            .bind(&self.{{name}})
+            {{/each}}
+            .execute(exec)
+            .await?;
+        Ok(())
+    }
+
+    async fn select<'e, E>(exec: E) -> Result<Vec<Self>, sqlx::Error>
+    where
+        E: Executor<'e, Database = {{db}}>,
+        Self: for<'r> FromRow<'r, <{{db}} as sqlx::Database>::Row>
+    {
+        let sql = SqlBuilder::<Postgres, Users>::select_all();
+        let recs = sqlx::query_as::<_, Users>(&sql)
+            .fetch_all(exec)
+            .await?;
+        Ok(recs)
+    }
+
+    async fn select_by_pk<'e, E>(
+        pk: Self::TypePK,
+        exec: E,
+    ) -> Result<Option<Self>, sqlx::Error>
+    where
+        E: Executor<'e, Database = {{db}}>,
+        Self: for<'r> FromRow<'r, <{{db}} as sqlx::Database>::Row>,
+    {
+        let sql = SqlBuilder::<Postgres, Users>::select_by_pk();
+        let rec = sqlx::query_as::<_, Users>(&sql)
+            .bind(pk)
+            .fetch_optional(exec)
+            .await?;
+        Ok(rec)
+    }
+    
+    async fn delete<'e, E>(exec: E) -> Result<(), sqlx::Error>
+    where
+        E: Executor<'e, Database = {{db}}>
+    {
+        let sql = SqlBuilder::<Postgres, Users>::delete_all();
+        sqlx::query(&sql)
+            .execute(exec)
+            .await?;
+        Ok(())
+    }
+    
+    async fn delete_by_pk<'e, E>(pk: Self::TypePK, exec: E) -> Result<(), sqlx::Error>
+    where
+        E: Executor<'e, Database = {{db}}>
+    {
+        let sql = SqlBuilder::<Postgres, Users>::delete_by_pk();
+        sqlx::query(&sql)
+            .bind(pk)
+            .execute(exec)
+            .await?;
+        Ok(())
+    }
+    
+    async fn count<'e, E>(exec: E) -> Result<i64, sqlx::Error>
+    where
+        E: Executor<'e, Database = {{db}}> {
+        use sqlx::Row;
+        let sql = SqlBuilder::<Postgres, Users>::count();
+        let rec = sqlx::query(&sql)
+            .fetch_one(exec)
+            .await?;
+        Ok(rec.get(0))
+    }
+}
+{{/each}}

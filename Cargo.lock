@@ -372,6 +372,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "di"
+version = "0.1.0"
+dependencies = [
+ "hashbrown 0.16.0",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1128,6 +1135,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 
 [[package]]
+name = "orm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "bigdecimal",
+ "chrono",
+ "futures-core",
+ "handlebars",
+ "hashbrown 0.16.0",
+ "schema_reader",
+ "serde",
+ "serde_yaml",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1364,25 +1391,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-commons"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "bigdecimal",
- "chrono",
- "futures-core",
- "handlebars",
- "hashbrown 0.16.0",
- "serde",
- "serde_yaml",
- "sqlx",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "rustc-demangle"
 version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1433,6 +1441,18 @@ name = "ryu"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
+
+[[package]]
+name = "schema_reader"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "handlebars",
+ "hashbrown 0.16.0",
+ "serde",
+ "serde_yaml",
+ "tracing",
+]
 
 [[package]]
 name = "scopeguard"

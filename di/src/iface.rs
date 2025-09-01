@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 pub trait IDependencyBuilder {
     fn register_dep(&mut self,token: &str, dep: Box<dyn Any>) -> &mut Self;

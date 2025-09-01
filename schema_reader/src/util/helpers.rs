@@ -47,12 +47,12 @@ pub fn snake_to_camel(
     Ok(())
 }
 
-pub trait DefaultHelpers {
-    fn register_default_helpers(&mut self);
+pub trait SchemaReaderHelpers {
+    fn register_schema_reader_helpers(&mut self);
 }
 
-impl DefaultHelpers for Handlebars<'_> {
-    fn register_default_helpers(&mut self) {
+impl SchemaReaderHelpers for Handlebars<'_> {
+    fn register_schema_reader_helpers(&mut self) {
         self.register_helper("upperFirst", Box::new(upper_first));
         self.register_helper("snakeToCamel", Box::new(snake_to_camel));
     }

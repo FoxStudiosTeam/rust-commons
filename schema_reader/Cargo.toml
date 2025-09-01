@@ -1,0 +1,12 @@
+[package]
+name = "schema_reader"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.99"
+handlebars = "6.3.2"
+hashbrown = "0.16.0"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_yaml = "0.9.34"
+tracing = "0.1.41"

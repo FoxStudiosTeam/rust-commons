@@ -5,7 +5,7 @@ use hashbrown::HashMap;
 use anyhow::Result;
 use tracing::{error, warn};
 
-use crate::schema_reader::{components::table, prelude::{DefaultHelpers, ErrOr, RawTable, RenderScheme, Table, Type}};
+use crate::{prelude::{SchemaReaderHelpers, RawTable, RenderScheme, Table, Type}};
 
 #[derive(Clone, Deserialize, Default, Debug)]
 struct RawYamlSchema {
@@ -122,28 +122,17 @@ impl Schema {
 
 
 impl RenderScheme for Schema {
-    fn render_tables<P: AsRef<Path>>(&self, template: P) -> anyhow::Result<Vec<(String, String)>> {
-        // todo: make global registry
-        let mut reg = handlebars::Handlebars::new();
-        reg.register_default_helpers();
-        let template_name = template.as_ref().file_stem().ok_or_else(|| anyhow::anyhow!("Can't get file name"))?
-            .to_str().ok_or_else(|| anyhow::anyhow!("Can't get file name"))?;
-        reg.register_template_file(template_name, template.as_ref())?;
+    fn render_tables(&self, registry: &handlebars::Handlebars, template_name: &str) -> anyhow::Result<Vec<(String, String)>> {
         let mut data = vec![];
         for (name, table) in self.tables.iter() {
-            let rendered = reg.render(template_name, &table)?;
+            let rendered = registry.render(template_name, &table)?;
             data.push((name.clone(), rendered));
         }
         Ok(data)
     }
 
-    fn render<P: AsRef<Path>>(&self, template: P) -> anyhow::Result<String> {
-        let mut reg = handlebars::Handlebars::new();
-        let name = template.as_ref().file_stem().ok_or_else(|| anyhow::anyhow!("Can't get file name"))?
-        .to_str().ok_or_else(|| anyhow::anyhow!("Can't get file name"))?;
-        reg.register_default_helpers();
-        reg.register_template_file(name, template.as_ref())?;
-        let rendered = reg.render(name, &self)?;
+    fn render(&self, registry: &handlebars::Handlebars, template_name: &str) -> anyhow::Result<String> {
+        let rendered = registry.render(template_name, &self)?;
         Ok(rendered)
     }
 }
