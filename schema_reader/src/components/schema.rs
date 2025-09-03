@@ -5,7 +5,7 @@ use hashbrown::HashMap;
 use anyhow::Result;
 use tracing::{error, warn};
 
-use crate::{prelude::{SchemaReaderHelpers, RawTable, RenderScheme, Table, Type}};
+use crate::{prelude::{RawTable, RenderScheme, Table, Type}};
 
 #[derive(Clone, Deserialize, Default, Debug)]
 struct RawYamlSchema {

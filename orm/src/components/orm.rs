@@ -1,8 +1,3 @@
-use std::{cell::RefCell, fmt::Debug, ops::Deref, rc::Rc, sync::Arc};
-
-use futures_core::{future::BoxFuture, stream::BoxStream};
-use sqlx::Executor;
-
 use crate::prelude::OrmDB;
 
 
@@ -19,28 +14,22 @@ impl<DB : OrmDB> Orm<sqlx::Pool<DB>>
         }
     }
     pub async fn begin_tx(&self) -> Result<Orm<TXInner<DB>>, Box<dyn std::error::Error>> {
-        // let v = self.executor.begin().await?.d;
-
-
-        todo!()
-        // Ok(OrmTX { executor: RefCell::new(v) })
+        let v = self.executor.begin().await?;
+        Ok(Orm { executor: TXInner { inner: v }})
     }
 }
 
 
 pub struct TXInner<'a, DB: OrmDB> {
-    pub inner: RefCell<sqlx::Transaction<'a, DB>>,
+    pub inner: sqlx::Transaction<'a, DB>,
 }
 
 impl<'a, DB: OrmDB> TXInner<'a, DB> {
     pub async fn commit(self) -> Result<(), sqlx::Error> {
-        // let v  = &mut **self.inner.borrow_mut();
-        // drop(v);
-        self.inner.into_inner().commit().await
+        self.inner.commit().await
     }
-
     pub async fn rollback(self) -> Result<(), sqlx::Error> {
-        self.inner.into_inner().rollback().await
+        self.inner.rollback().await
     }
 }
 

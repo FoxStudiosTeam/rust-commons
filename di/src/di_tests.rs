@@ -1,3 +1,4 @@
+#![allow(unused)]
 use std::any::Any;
 use hashbrown::HashMap;
 use std::ops::Deref;
@@ -66,7 +67,7 @@ impl SomeService for SomeServiceStruct {
 
 trait ProjectContainer {
     fn get_test_service(&self) -> &TestServiceStruct;
-    fn get_test_service_b(&self) -> Box<dyn TestService>;
+    fn get_test_service_b(&self) -> &Box<dyn TestService>;
 
     fn get_some_service(&self) -> &Box<dyn SomeService>;
 }
@@ -96,12 +97,13 @@ impl ProjectContainer for Container {
         panic!("Нет зависимости в di test_service")
     }
 
-    fn get_test_service_b(&self) -> Box<dyn TestService> {
+    fn get_test_service_b(&self) -> &Box<dyn TestService> {
         let res = self.deps.get("test-b").expect("Нет зависимости в di test_service_b");
         if let Some(test_service_ptr) = res.downcast_ref::<Box<dyn TestService>>() {
-            test_service_ptr.clone();
+            test_service_ptr
+        } else {
+            panic!("Неверный тип для зависимости test-b")
         }
-        panic!("Неверный тип для зависимости test-b")
     }
     
     fn get_some_service(&self) -> &Box<dyn SomeService> {

@@ -25,7 +25,6 @@ pub fn generate<P: AsRef<std::path::Path>>(schema : &Schema, out_dir: P) -> Resu
     reg.register_template_string("table_template", TABLE_TEMPLATE)?;
     reg.register_schema_reader_helpers();
 
-
     let tables_mod = schema.render(&reg, "mod_template")?;
     let db_tables = schema.render(&reg, "db_tables_template")?;
 
