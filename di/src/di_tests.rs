@@ -83,18 +83,32 @@ impl Container {
             deps: hash_map
         }
     }
+    fn get_some_service(&self) -> &Box<dyn SomeService>;
+}
+
+#[derive(Default)]
+pub struct Container {
+    pub deps: HashMap<String, Box<dyn Any>>
+}
+
+impl Container {
+    pub fn new(hash_map: HashMap<String, Box<dyn Any>>) -> Self {
+        Self {
+            deps: hash_map
+        }
+    }
 }
 
 impl ProjectContainer for Container {
-    fn get_test_service(&self) -> &TestServiceStruct {
+    fn get_test_service(&self) -> &Box<dyn TestService> {
         let res = self.deps.get("test");
-        if let Some(test_service_ptr) = res {
-            let a = test_service_ptr.downcast_ref::<TestServiceStruct>();
-            if let Some(test_service) = a {
-                return test_service
+        if let Some(rs) = res {
+            if let Some(rr) = rs.downcast_ref::<Box<dyn TestService>>() {
+                return rr
             }
+            panic!("Не удалось закастить тип dyn Any к dyn TestService")
         }
-        panic!("Нет зависимости в di test_service")
+        panic!("Неверный тип для зависимости test")
     }
 
     fn get_test_service_b(&self) -> &Box<dyn TestService> {
@@ -113,7 +127,7 @@ impl ProjectContainer for Container {
                 return rr
             }
         }
-        panic!("Нет зависимости в di test_service_b")
+        panic!("Неверный тип для зависимости test-b")
     }
 }
 
@@ -130,6 +144,9 @@ mod tests {
         let test_service_b = DualServiceTestStruct::new("Some-value-b".to_string());
         let some_service = SomeServiceStruct::new("Some-service-value".to_string());
         let mut builder = DependencyBuilder::new();
+        builder.register_dep("test", Box::new(Box::new(test_service) as Box<dyn TestService>));
+        builder.register_dep("test-b", Box::new(Box::new(test_service_b) as Box<dyn TestService>));
+        builder.register_dep("some-service", Box::new(Box::new(some_service) as Box<dyn SomeService>));
         builder.register_dep("test", Box::new(Box::new(test_service) as Box<dyn TestService>));
         builder.register_dep("test-b", Box::new(Box::new(test_service_b) as Box<dyn TestService>));
         builder.register_dep("some-service", Box::new(Box::new(some_service) as Box<dyn SomeService>));

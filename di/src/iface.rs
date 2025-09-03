@@ -6,7 +6,3 @@ pub trait IDependencyBuilder {
     fn register_default(&mut self) -> &mut Self;
     fn build(self) -> HashMap<String, Box<dyn Any>>;
 }
-
-pub trait IContainer{
-    //TODO название сервиса() -> тип сервиса
-}
