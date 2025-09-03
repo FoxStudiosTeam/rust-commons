@@ -1,0 +1,8 @@
+--- THIS FILE IS GENERATED, NOT FOR MANUAL EDIT
+CREATE SCHEMA IF NOT EXISTS {{table.schema}};
+
+CREATE TABLE IF NOT EXISTS {{table.name}} (
+{{#each table.fields}}
+    {{name}} {{tp}} {{#if isPrimary}} primary key {{/if}},
+{{/each}}
+);
