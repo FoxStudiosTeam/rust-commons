@@ -66,7 +66,7 @@ impl SomeService for SomeServiceStruct {
 }
 
 trait ProjectContainer {
-    fn get_test_service(&self) -> &TestServiceStruct;
+    fn get_test_service(&self) -> &Box<dyn TestService>;
     fn get_test_service_b(&self) -> &Box<dyn TestService>;
 
     fn get_some_service(&self) -> &Box<dyn SomeService>;
@@ -83,21 +83,8 @@ impl Container {
             deps: hash_map
         }
     }
-    fn get_some_service(&self) -> &Box<dyn SomeService>;
 }
 
-#[derive(Default)]
-pub struct Container {
-    pub deps: HashMap<String, Box<dyn Any>>
-}
-
-impl Container {
-    pub fn new(hash_map: HashMap<String, Box<dyn Any>>) -> Self {
-        Self {
-            deps: hash_map
-        }
-    }
-}
 
 impl ProjectContainer for Container {
     fn get_test_service(&self) -> &Box<dyn TestService> {
@@ -144,9 +131,6 @@ mod tests {
         let test_service_b = DualServiceTestStruct::new("Some-value-b".to_string());
         let some_service = SomeServiceStruct::new("Some-service-value".to_string());
         let mut builder = DependencyBuilder::new();
-        builder.register_dep("test", Box::new(Box::new(test_service) as Box<dyn TestService>));
-        builder.register_dep("test-b", Box::new(Box::new(test_service_b) as Box<dyn TestService>));
-        builder.register_dep("some-service", Box::new(Box::new(some_service) as Box<dyn SomeService>));
         builder.register_dep("test", Box::new(Box::new(test_service) as Box<dyn TestService>));
         builder.register_dep("test-b", Box::new(Box::new(test_service_b) as Box<dyn TestService>));
         builder.register_dep("some-service", Box::new(Box::new(some_service) as Box<dyn SomeService>));
