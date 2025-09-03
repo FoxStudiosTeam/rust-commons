@@ -34,7 +34,7 @@ pub fn generate<P: AsRef<std::path::Path>>(schema : &Schema, out_dir: P) -> Resu
         DBFeature{feature: "sqlite", db: "sqlx::Sqlite"},
     ];
 
-    std::fs::remove_dir_all(out_dir.as_ref().join("tables"))?;
+    std::fs::remove_dir_all(out_dir.as_ref().join("tables")).ok();
     std::fs::create_dir(out_dir.as_ref().join("tables"))?;
 
 
