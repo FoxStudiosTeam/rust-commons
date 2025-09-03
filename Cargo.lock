@@ -606,6 +606,7 @@ dependencies = [
  "allocator-api2",
  "equivalent",
  "foldhash 0.1.5",
+ "serde",
 ]
 
 [[package]]
@@ -1448,7 +1449,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "handlebars",
- "hashbrown 0.16.0",
+ "hashbrown 0.15.5",
  "serde",
  "serde_yaml",
  "tracing",
