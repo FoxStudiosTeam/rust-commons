@@ -13,8 +13,8 @@ struct DBFeature {
 }
 
 pub const MOD_TEMPLATE : &str = include_str!("../templates/tables/mod.hbr");
-pub const DB_TABLES_TEMPLATE : &str = include_str!("../templates/tables/mod.hbr");
-pub const TABLE_TEMPLATE : &str = include_str!("../templates/tables/mod.hbr");
+pub const DB_TABLES_TEMPLATE : &str = include_str!("../templates/db_tables.hbr");
+pub const TABLE_TEMPLATE : &str = include_str!("../templates/tables/table.hbr");
 
 pub fn generate<P: AsRef<std::path::Path>>(schema : &Schema, out_dir: P) -> Result<(), Box<dyn std::error::Error>>{
     
