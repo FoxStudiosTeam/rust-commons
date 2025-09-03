@@ -1,6 +1,10 @@
-[package]
-name = "rust-commons"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+members = [ "di", "orm", "schema_reader"]
+resolver = "2"
 
-[dependencies]
+
+
+[workspace.dependencies]
+di = { path = "./di" }
+orm = { path = "./orm" }
+schema_reader = { path = "./schema_reader" }
