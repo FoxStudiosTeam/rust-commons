@@ -38,7 +38,7 @@ pub fn generate<P: AsRef<std::path::Path>>(
     reg.register_template_string(MOD_TEMPLATE_NAME, MOD_TEMPLATE)?;
     reg.register_template_string(DB_TABLES_TEMPLATE_NAME, DB_TABLES_TEMPLATE)?;
     reg.register_template_string(TABLE_TEMPLATE_NAME, TABLE_TEMPLATE)?;
-    reg.register_template_string(TABLE_TEMPLATE_NAME, MIGRATION_TEMPLATE)?;
+    reg.register_template_string(MIGRATION_TEMPLATE_NAME, MIGRATION_TEMPLATE)?;
     reg.register_schema_reader_helpers();
 
     let tables_mod = schema.render(&reg, MOD_TEMPLATE_NAME)?;
