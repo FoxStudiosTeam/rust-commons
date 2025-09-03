@@ -1,7 +1,9 @@
 // THIS FILE IS GENERATED, NOT FOR MANUAL EDIT
 use sqlx::{Executor, FromRow, Postgres};
+use std::marker::PhantomData;
 
-use crate::{prelude::{ModelOps, SqlBuilder, TableSelector}};
+use crate::prelude::*;
+use sqlx::Pool;
 
 #[derive(Clone,Debug)]
 #[derive(FromRow)]
@@ -9,6 +11,36 @@ pub struct {{snakeToCamel table.name}} {
     {{#each table.fields}}
     pub {{name}}: {{type}},
     {{/each}}
+}
+
+impl<DB> Orm<Pool<DB>>
+where
+    DB: OrmDB,
+{
+    pub fn {{table.name}}<'e>(&'e self) -> SelectorInteractions<'e, DB, Pool<DB>, {{snakeToCamel table.name}}>
+    where 
+        &'e Pool<DB>: Executor<'e, Database = DB>
+    {
+        SelectorInteractions {
+            _g: PhantomData,
+            _t: PhantomData,
+            executor: &self.executor,
+        }
+    }
+}
+
+impl<'c, DB> Orm<TXInner<DB>>
+where
+    DB: OrmDB,
+{
+    pub fn {{table.name}}(&'c mut self) -> TxSelectorInteractions<'c, DB, {{snakeToCamel table.name}}>
+    {
+        TxSelectorInteractions {
+            _g: PhantomData,
+            _t: PhantomData,
+            executor: &mut self.executor.inner,
+        }
+    }
 }
 
 impl TableSelector for {{snakeToCamel table.name}} {
