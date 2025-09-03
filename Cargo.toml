@@ -1,5 +1,5 @@
 [workspace]
-members = [ "di", "orm", "schema_reader"]
+members = [ "di", "orm", "schema_reader", "utils"]
 resolver = "2"
 
 
@@ -8,3 +8,4 @@ resolver = "2"
 di = { path = "./di" }
 orm = { path = "./orm" }
 schema_reader = { path = "./schema_reader" }
+utils = { path = "./utils" }

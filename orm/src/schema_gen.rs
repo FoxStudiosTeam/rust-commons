@@ -17,7 +17,6 @@ pub const DB_TABLES_TEMPLATE : &str = include_str!("../templates/tables/mod.hbr"
 pub const TABLE_TEMPLATE : &str = include_str!("../templates/tables/mod.hbr");
 
 pub fn generate<P: AsRef<std::path::Path>>(schema : &Schema, out_dir: P) -> Result<(), Box<dyn std::error::Error>>{
-    
     let mut reg = handlebars::Handlebars::new();
 
     reg.register_template_string("mod_template", MOD_TEMPLATE)?;
@@ -37,17 +36,14 @@ pub fn generate<P: AsRef<std::path::Path>>(schema : &Schema, out_dir: P) -> Resu
     std::fs::remove_dir_all(out_dir.as_ref().join("tables"))?;
     std::fs::create_dir(out_dir.as_ref().join("tables"))?;
 
-
     std::fs::write(out_dir.as_ref().join("tables/mod.rs"), tables_mod)?;
     std::fs::write(out_dir.as_ref().join("tables/db_tables.rs"), db_tables)?;
-
 
     for (name, table) in schema.tables.iter() {
         let table = TableDBs{table, dbs};
         let rendered = reg.render_template("table_template", &table)?;
         std::fs::write(out_dir.as_ref().join("tables/").with_file_name(name).with_extension("rs"), rendered)?;
     }
-
 
     Ok(())
 }
