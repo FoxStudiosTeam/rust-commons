@@ -12,6 +12,7 @@ struct DBFeature {
     db: &'static str,
 }
 
+
 pub const MOD_TEMPLATE : &str = include_str!("../templates/tables/mod.hbr");
 pub const DB_TABLES_TEMPLATE : &str = include_str!("../templates/db_tables.hbr");
 pub const TABLE_TEMPLATE : &str = include_str!("../templates/tables/table.hbr");
@@ -34,20 +35,21 @@ pub fn generate<P: AsRef<std::path::Path>>(schema : &Schema, out_dir: P) -> Resu
         DBFeature{feature: "sqlite", db: "sqlx::Sqlite"},
     ];
 
-    std::fs::remove_dir_all(out_dir.as_ref().join("tables")).ok();
     std::fs::create_dir(out_dir.as_ref().join("tables"))?;
 
 
     std::fs::write(out_dir.as_ref().join("tables/mod.rs"), tables_mod)?;
-    std::fs::write(out_dir.as_ref().join("tables/db_tables.rs"), db_tables)?;
+    std::fs::write(out_dir.as_ref().join("db_tables.rs"), db_tables)?;
 
-
+    
     for (name, table) in schema.tables.iter() {
         let table = TableDBs{table, dbs};
-        let rendered = reg.render_template("table_template", &table)?;
-        std::fs::write(out_dir.as_ref().join("tables/").with_file_name(name).with_extension("rs"), rendered)?;
+        let rendered = reg.render("table_template", &table)?;
+        std::fs::write(out_dir.as_ref()
+            .join("tables")
+            .join(name)
+            .with_extension("rs"), rendered)?;
     }
-
 
     Ok(())
 }
