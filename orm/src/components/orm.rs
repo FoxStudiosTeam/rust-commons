@@ -20,11 +20,11 @@ impl<DB : OrmDB> Orm<sqlx::Pool<DB>>
 }
 
 
-pub struct TXInner<'a, DB: OrmDB> {
-    pub inner: sqlx::Transaction<'a, DB>,
+pub struct TXInner<DB: OrmDB> {
+    pub inner: sqlx::Transaction<'static, DB>,
 }
 
-impl<'a, DB: OrmDB> TXInner<'a, DB> {
+impl<DB: OrmDB> TXInner<DB> {
     pub async fn commit(self) -> Result<(), sqlx::Error> {
         self.inner.commit().await
     }

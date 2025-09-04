@@ -7,6 +7,7 @@ pub mod prelude {
     pub use super::abstractions::prelude::*;
     pub use super::schema_gen::*;
 }
+pub mod generated;
 
 
 
