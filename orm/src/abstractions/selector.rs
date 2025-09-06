@@ -12,34 +12,42 @@ pub trait TableSelector {
     fn pk_column() -> &'static str;
 }
 
-
+#[async_trait::async_trait]
 pub trait ModelOps<DB>: Sized + TableSelector
 where
     DB: OrmDB,
 {
-    fn insert<'e, E>(&self, exec: E) -> impl std::future::Future<Output = Result<(), sqlx::Error>> + Send
+    /// Returns `true` if the record was inserted, `false` if primary key already exists
+    fn insert<'e, E>(self, exec: E) -> impl std::future::Future<Output = Result<bool, sqlx::Error>> + Send
     where
         E: Executor<'e, Database = DB>,
-        for<'q> <DB as sqlx::Database>::Arguments<'q>: Default + sqlx::IntoArguments<'q, DB>;
+        for<'q> <DB as sqlx::Database>::Arguments<'q>: Default + sqlx::IntoArguments<'q, DB>
+        ;
+    fn insert_update<'e, E>(self, exec: E) -> impl std::future::Future<Output = Result<(), sqlx::Error>> + Send
+    where
+        E: Executor<'e, Database = DB>,
+        for<'q> <DB as sqlx::Database>::Arguments<'q>: Default + sqlx::IntoArguments<'q, DB>
+        ;
     fn select<'e, E>(exec: E) -> impl std::future::Future<Output = Result<Vec<Self>, sqlx::Error>> + Send
     where
         E: Executor<'e, Database = DB>,
-        Self: for<'r> FromRow<'r, <DB as sqlx::Database>::Row>;
-    fn select_by_pk<'e, E>(pk: Self::TypePK, exec: E) -> impl std::future::Future<Output = Result<Option<Self>, sqlx::Error>> + Send
+        Self: for<'r> FromRow<'r, <DB as sqlx::Database>::Row>
+        ;
+    fn select_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> impl std::future::Future<Output = Result<Option<Self>, sqlx::Error>> + Send
     where
         E: Executor<'e, Database = DB>,
-        Self: for<'r> FromRow<'r, <DB as sqlx::Database>::Row>;
-    fn delete<'e, E>(exec: E) -> impl std::future::Future<Output = Result<(), sqlx::Error>> + Send
+        Self: for<'r> FromRow<'r, <DB as sqlx::Database>::Row>
+        ;
+    fn delete<'e, E>(exec: E) -> impl std::future::Future<Output = Result<bool, sqlx::Error>> + Send
     where
         E: Executor<'e, Database = DB>;
-    fn delete_by_pk<'e, E>(pk: Self::TypePK, exec: E) -> impl std::future::Future<Output = Result<(), sqlx::Error>> + Send
+    fn delete_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> impl std::future::Future<Output = Result<bool, sqlx::Error>> + Send
     where
         E: Executor<'e, Database = DB>;
     fn count<'e, E>(exec: E) -> impl std::future::Future<Output = Result<i64, sqlx::Error>> + Send
     where
         E: Executor<'e, Database = DB>;
 }
-
 
 
 pub struct SelectorInteractions<'e, DB, E, T>
@@ -53,7 +61,6 @@ where
     pub(crate) executor: &'e E
 }
 
-
 impl<'e, DB, E, T> SelectorInteractions<'e, DB, E, T>
 where
     T: TableSelector + ModelOps<DB> + for<'r> FromRow<'r, <DB as sqlx::Database>::Row>,
@@ -61,23 +68,33 @@ where
     for<'a> <DB as sqlx::Database>::Arguments<'a>: IntoArguments<'a, DB>,
     &'e E: Executor<'e, Database = DB>,
 {
-    pub async fn insert(&self, data: T) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(data.insert(self.executor).await?)
+    pub fn new(executor: &'e E) -> Self {
+        Self {
+            _g: PhantomData,
+            _t: PhantomData,
+            executor
+        }
     }
-    pub async fn select(&self) -> Result<Vec<T>, Box<dyn std::error::Error>> {
-        Ok(T::select(self.executor).await?)
+    pub fn insert(self, data: T) -> impl std::future::Future<Output = Result<bool, sqlx::Error>> + Send {
+        data.insert(self.executor)
     }
-    pub async fn select_by_pk(&self, key: T::TypePK) -> Result<Option<T>, Box<dyn std::error::Error>> {
-        Ok(T::select_by_pk(key, self.executor).await?)
+    pub fn insert_update(self, data: T) -> impl std::future::Future<Output = Result<(), sqlx::Error>> + Send {
+        data.insert_update(self.executor)
     }
-    pub async fn delete(&self) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(T::delete(self.executor).await?)
+    pub fn select(self) -> impl std::future::Future<Output = Result<Vec<T>, sqlx::Error>> + Send {
+        T::select(self.executor)
     }
-    pub async fn delete_by_pk(&self, key: T::TypePK) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(T::delete_by_pk(key, self.executor).await?)
+    pub fn select_by_pk(self, key: &T::TypePK) -> impl std::future::Future<Output = Result<Option<T>, sqlx::Error>> + Send {
+        T::select_by_pk(key, self.executor)
     }
-    pub async fn count(&self) -> Result<i64, Box<dyn std::error::Error>> {
-        Ok(T::count(self.executor).await?)
+    pub fn delete(self) -> impl std::future::Future<Output = Result<bool, sqlx::Error>> + Send {
+        T::delete(self.executor)
+    }
+    pub fn delete_by_pk(self, key: &T::TypePK) -> impl std::future::Future<Output = Result<bool, sqlx::Error>> + Send {
+        T::delete_by_pk(key, self.executor)
+    }
+    pub fn count(self) -> impl std::future::Future<Output = Result<i64, sqlx::Error>> + Send {
+        T::count(self.executor)
     }
 }
 
@@ -91,31 +108,40 @@ where
     pub(crate) executor:  &'e mut <DB as sqlx::Database>::Connection
 }
 
-
 impl<'e, DB, T> TxSelectorInteractions<'e, DB, T>
 where
-    T: TableSelector + ModelOps<DB> + for<'r> FromRow<'r, <DB as sqlx::Database>::Row>,
+    T: TableSelector + for<'r> FromRow<'r, <DB as sqlx::Database>::Row> + ModelOps<DB>,
     DB: OrmDB,
     for<'a> <DB as sqlx::Database>::Arguments<'a>: IntoArguments<'a, DB>,
     &'e mut <DB as sqlx::Database>::Connection: Executor<'e, Database = DB>,
 {
-    pub async fn insert(self, data: T) -> Result<(), Box<dyn std::error::Error>> {
-        let res = data.insert(self.executor).await?;
-        Ok(res)
+    pub fn new(executor: &'e mut <DB as sqlx::Database>::Connection) -> Self {
+        Self {
+            _g: PhantomData,
+            _t: PhantomData,
+            executor: executor
+        }
     }
-    pub async fn select(self) -> Result<Vec<T>, Box<dyn std::error::Error>> {
-        Ok(T::select(self.executor).await?)
+    pub fn insert(self, data: T) -> impl std::future::Future<Output = Result<bool, sqlx::Error>> + Send {
+        data.insert(self.executor)
     }
-    pub async fn select_by_pk(self, key: T::TypePK) -> Result<Option<T>, Box<dyn std::error::Error>> {
-        Ok(T::select_by_pk(key, self.executor).await?)
+    pub fn insert_update(self, data: T) -> impl std::future::Future<Output = Result<(), sqlx::Error>> + Send {
+        data.insert_update(self.executor)
     }
-    pub async fn delete(self) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(T::delete(self.executor).await?)
+    pub fn select(self) -> impl std::future::Future<Output = Result<Vec<T>, sqlx::Error>> + Send {
+        T::select(self.executor)
     }
-    pub async fn delete_by_pk(self, key: T::TypePK) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(T::delete_by_pk(key, self.executor).await?)
+    pub fn select_by_pk(self, key: &T::TypePK) -> impl std::future::Future<Output = Result<Option<T>, sqlx::Error>> + Send {
+        T::select_by_pk(key, self.executor)
     }
-    pub async fn count(self) -> Result<i64, Box<dyn std::error::Error>> {
-        Ok(T::count(self.executor).await?)
+    pub fn delete(self) -> impl std::future::Future<Output = Result<bool, sqlx::Error>> + Send {
+        T::delete(self.executor)
+    }
+    pub fn delete_by_pk(self, key: &T::TypePK) -> impl std::future::Future<Output = Result<bool, sqlx::Error>> + Send {
+        T::delete_by_pk(key, self.executor)
+    }
+    pub fn count(self) -> impl std::future::Future<Output = Result<i64, sqlx::Error>> + Send {
+        T::count(self.executor)
     }
 }
+

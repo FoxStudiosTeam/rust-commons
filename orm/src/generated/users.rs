@@ -33,7 +33,7 @@ where
     }
 }
 
-impl<'c, DB> Orm<TXInner<DB>>
+impl<'c, DB> OrmTX<DB>
 where
     DB: OrmDB,
 {
@@ -42,7 +42,7 @@ where
         TxSelectorInteractions {
             _g: PhantomData,
             _t: PhantomData,
-            executor: &mut self.executor.inner,
+            executor: &mut *self.inner,
         }
     }
 }

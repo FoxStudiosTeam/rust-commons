@@ -3,8 +3,8 @@
 
 use std::str::FromStr;
 
-use dotenvy;
-use once_cell;
+pub use dotenvy;
+pub use once_cell;
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -54,13 +54,44 @@ impl<T> Operator<T, ParseError> for (T,) {
 }
 
 
-
+/// ## That macro reads variables from env or/and file. 
+/// - It creates a struct and put it in global static which can be accessed from anywhere
+/// - It is lazy and will load everything at once only when it is first accessed   
+/// - It also supports default values, they will be used if env var is missing
+/// - It will panic if env var is missing and no default value
+/// - Filename is optional and very useful for local development
+/// - All fields is public by default
+/// ```
+/// env_config!(
+///     ".env" => pub(crate) ENV = pub(crate) Env {
+///         SERVICE_AUTH_PORT : u16,
+///         DATABASE_URL : String = "postgres://postgres:postgres@localhost:8080/postgres".to_string(),
+///         TURNSTILE_SECRET : String,
+///         EMAIL_SEND_NATS_EVENT : String,
+///         DISCORD_AUTH_URI: String,
+///         GOOGLE_REDIRECT_URI : String,
+///         GOOGLE_CLIENT_SECRET : String,
+///         GOOGLE_CLIENT_ID : String,
+///     }
+///     ".cfg" => pub(crate) CFG = pub Cfg {
+///         REFRESH_TOKEN_LIFETIME : u64 = 30 * 24 * 60 * 60,
+///         ACCESS_TOKEN_LIFETIME : u64 = 15 * 60,
+///         REDIS_MAX_LIVE_SESSIONS : usize = 5,
+///         MIN_NICKNAME_LENGTH : usize,
+///         MAX_NICKNAME_LENGTH : usize,
+///         RECOVERY_EMAIL_LIFETIME : u64 = 5 * 60,
+///         REGISTER_EMAIL_LIFETIME : u64 = 5 * 60,
+///         RECOVERY_TOKEN_LEN : usize = 128,
+///         USERNAME_CHECKS_PER_SEC : u64 = 10,
+///     }
+/// );
+/// ```
 #[macro_export]
 macro_rules! env_config {
-    ($($filename:expr => $glob:ident = $struct:ident {$($field:ident : $type:ty $(= $op_val:expr)? ),* $(,)?})*) => {
+    ($($filename:expr => $glob_vis:vis $glob:ident = $struct_vis:vis $struct:ident {$($field:ident : $type:ty $(= $op_val:expr)? ),* $(,)?})*) => {
         $(
             #[allow(non_snake_case)]
-            pub(crate) struct $struct {
+            $struct_vis struct $struct {
                 $(pub $field: $type),*
             }
             impl $struct {
@@ -76,32 +107,7 @@ macro_rules! env_config {
                 }
             }
 
-            pub(crate) static $glob : $crate::helpers::env::once_cell::sync::Lazy<$struct> = $crate::helpers::env::once_cell::sync::Lazy::new(|| {
-                $crate::helpers::env::dotenvy::from_filename_override($filename).ok(); // only for develop
-                $struct::new()
-            });
-        )*
-    };
-    ($($filename:expr => pub $glob:ident = $struct:ident {$($field:ident : $type:ty $(= $op_val:expr)? ),* $(,)?})*) => {
-        $(
-            #[allow(non_snake_case)]
-            pub struct $struct {
-                $(pub $field: $type),*
-            }
-            impl $struct {
-                fn new() -> Self {
-                    Self {
-                        $(
-                            $field: 
-                            $crate::helpers::env::Operator::if_none(($($op_val,)?), 
-                            $crate::helpers::env::TryParse::try_parse::<$type>(std::env::var(stringify!($field).to_ascii_uppercase()))
-                            ).unwrap_or_else(|e| e.describe_panic(stringify!($field), stringify!($type))),
-                        )*
-                    }
-                }
-            }
-
-            pub static $glob : $crate::helpers::env::once_cell::sync::Lazy<$struct> = $crate::helpers::env::once_cell::sync::Lazy::new(|| {
+            $glob_vis static $glob : $crate::helpers::env::once_cell::sync::Lazy<$struct> = $crate::helpers::env::once_cell::sync::Lazy::new(|| {
                 $crate::helpers::env::dotenvy::from_filename_override($filename).ok(); // only for develop
                 $struct::new()
             });
