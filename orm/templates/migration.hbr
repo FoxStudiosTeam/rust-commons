@@ -1,0 +1,44 @@
+{{!-- Tables Removed --}}
+{{#each removed}}
+DROP TABLE {{this.schema}}.{{this.name}};
+{{/each}}
+
+{{!-- Tables Changed --}}
+{{#each changed}}
+  {{#each removed}}
+  ALTER TABLE {{../schema}}.{{../name}}
+    DROP COLUMN {{name}};
+  {{/each}}
+
+  {{#each changed}}
+    {{#if field_type}}
+    ALTER TABLE {{../schema}}.{{../name}}
+      ALTER COLUMN {{name}} TYPE {{field_type}};
+    {{/if}}
+    {{#if (eq pk false)}}
+    ALTER TABLE {{../schema}}.{{../name}}
+      DROP CONSTRAINT {{../name}}_pkey;
+    {{/if}}
+    {{#if (eq pk true)}}
+    ALTER TABLE {{../schema}}.{{../name}}
+      ADD PRIMARY KEY ({{name}});
+    {{/if}}
+  {{/each}}
+  {{#each added}}
+  ALTER TABLE {{../schema}}.{{../name}}
+    ADD COLUMN {{name}} {{type}}{{#if isPrimary}} PRIMARY KEY{{/if}};
+  {{/each}}
+{{/each}}
+
+
+{{!-- Tables Added --}}
+{{#each added}}
+CREATE SCHEMA IF NOT EXISTS {{this.schema}};
+CREATE TABLE IF NOT EXISTS {{this.schema}}.{{this.name}} (
+  {{#each this.fields}}
+  {{name}} {{type}}{{#if isPrimary}} PRIMARY KEY{{/if}}{{#unless @last}},{{/unless}}
+  {{/each}}
+);
+{{/each}}
+
+

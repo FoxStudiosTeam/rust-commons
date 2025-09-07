@@ -5,7 +5,7 @@ use hashbrown::HashMap;
 use anyhow::Result;
 use tracing::{error, warn};
 
-use crate::{prelude::{RawTable, RenderScheme, Table, Type}};
+use crate::prelude::{RawTable, RenderScheme, Table, Type};
 
 #[derive(Clone, Deserialize, Default, Debug)]
 struct RawYamlSchema {
@@ -52,7 +52,7 @@ impl RawYamlSchema {
             }
             flatten_tables.insert(table_name.clone(), table.complete(&self.types).map_err(|e: String| anyhow::anyhow!(e))?);
         }
-        Ok(Schema { tables: flatten_tables, types: self.types })
+        Ok(Schema { tables: flatten_tables, types: self.types, type_mapping: TypeMapping::Rust })
     }
 
     fn from_dir<P: AsRef<Path>>(path: P) -> Result<Self> {
@@ -82,10 +82,18 @@ impl RawYamlSchema {
     }
 }
 
-#[derive(Clone, Serialize, Default, Debug)]
+#[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq)]
 pub struct Schema {
     pub tables: HashMap<String, Table>,
     pub types: HashMap<String, Type>,
+    pub type_mapping: TypeMapping,
+}
+
+#[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq, Eq)]
+pub enum TypeMapping {
+    #[default]
+    Rust,
+    Pg,
 }
 
 
@@ -117,6 +125,71 @@ impl Schema {
     }
 }
 
+
+use super::table::*;
+
+
+#[derive(Default, Debug, Serialize)]
+pub struct SchemaDifference {
+    pub added: Vec<TableAdded>,
+    pub removed: Vec<TableRemoved>,
+    pub changed: Vec<TableChanged>,
+}
+
+impl Schema {
+    pub fn get_types(&self, mapping: &TypeMapping) -> HashMap<String, String> {
+        if &self.type_mapping == mapping {
+            return self.types
+                .clone()
+                .into_iter()
+                .map(|(k, v)| {(k, v.inner)})
+                .collect()
+        }
+        self.types
+            .clone()
+            .into_iter()
+            .map(|(k, v)| {(v.inner, k)})
+            .collect()
+    }
+
+    pub fn change_mappings(&mut self, mapping: TypeMapping) {
+        let type_mappings = self.get_types(&mapping);
+
+        for table in self.tables.values_mut() {
+            table.map_types(&type_mappings);
+        }
+        self.types = type_mappings.into_iter().map(|(k, v)| {(k, Type{inner: v})}).collect();
+        self.type_mapping = mapping;
+    }
+
+    pub fn difference(&self, other: &Self) -> SchemaDifference {
+        let mut added = vec![];
+        let mut removed = self.tables.clone();
+        let mut changed = vec![];
+        
+        let mut types = self.get_types(&TypeMapping::Pg);
+        let other_types = other.get_types(&TypeMapping::Pg);
+        types.extend(other_types);
+
+        for (key, value) in other.tables.iter() {
+            if let Some(table) = removed.remove(key) {
+                table
+                    .difference(value)
+                    .map(|mut v| {v.map_types(&types); changed.push(v)} );
+            } else {
+                added.push(TableAdded(value.clone()));
+            };
+        }
+        SchemaDifference{
+            added, 
+            removed: removed
+                .into_iter()
+                .map(|(_k, v)| TableRemoved(v))
+                .collect(), 
+            changed
+        }
+    }
+}
 
 
 

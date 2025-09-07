@@ -1,8 +1,7 @@
 // THIS FILE IS GENERATED, NOT FOR MANUAL EDIT
-use sqlx::{Executor, FromRow, Postgres};
-use std::marker::PhantomData;
+use sqlx::{Executor, FromRow};
 
-use crate::prelude::*;
+use orm::prelude::*;
 use sqlx::Pool;
 
 #[derive(Clone,Debug)]
@@ -13,34 +12,14 @@ pub struct {{snakeToCamel table.name}} {
     {{/each}}
 }
 
-impl<DB> Orm<Pool<DB>>
-where
-    DB: OrmDB,
-{
-    pub fn {{table.name}}<'e>(&'e self) -> SelectorInteractions<'e, DB, Pool<DB>, {{snakeToCamel table.name}}>
+pub trait Orm{{snakeToCamel table.name}}<DB: OrmDB> {
+    fn {{table.name}}<'e>(&'e self) -> SelectorInteractions<'e, DB, Pool<DB>, {{snakeToCamel table.name}}>
     where 
-        &'e Pool<DB>: Executor<'e, Database = DB>
-    {
-        SelectorInteractions {
-            _g: PhantomData,
-            _t: PhantomData,
-            executor: &self.executor,
-        }
-    }
+        &'e Pool<DB>: Executor<'e, Database = DB>;
 }
 
-impl<'c, DB> Orm<TXInner<DB>>
-where
-    DB: OrmDB,
-{
-    pub fn {{table.name}}(&'c mut self) -> TxSelectorInteractions<'c, DB, {{snakeToCamel table.name}}>
-    {
-        TxSelectorInteractions {
-            _g: PhantomData,
-            _t: PhantomData,
-            executor: &mut self.executor.inner,
-        }
-    }
+pub trait OrmTX{{snakeToCamel table.name}}<'c, DB: OrmDB> {
+    fn {{table.name}}(&'c mut self) -> TxSelectorInteractions<'c, DB, {{snakeToCamel table.name}}>;
 }
 
 impl TableSelector for {{snakeToCamel table.name}} {
@@ -65,14 +44,57 @@ impl TableSelector for {{snakeToCamel table.name}} {
 {{#each dbs}}
 
 #[cfg(feature="{{feature}}")]
+impl Orm{{snakeToCamel ../table.name}}<{{db}}> for Orm<Pool<{{db}}>>
+{
+    fn {{../table.name}}<'e>(&'e self) -> SelectorInteractions<'e, {{db}}, Pool<{{db}}>, {{snakeToCamel ../table.name}}>
+    where 
+        &'e Pool<{{db}}>: Executor<'e, Database = {{db}}>
+    {
+        SelectorInteractions::new(&self.get_executor())
+    }
+}
+
+#[cfg(feature="{{feature}}")]
+impl<'c> OrmTX{{snakeToCamel ../table.name}}<'c, {{db}}> for OrmTX<{{db}}>
+{
+    fn {{../table.name}}(&'c mut self) -> TxSelectorInteractions<'c, {{db}}, {{snakeToCamel ../table.name}}>
+    {
+        TxSelectorInteractions::new(self.get_inner())
+    }
+}
+
+#[cfg(feature="{{feature}}")]
 impl ModelOps<{{db}}> for {{snakeToCamel ../table.name}} 
 {
-    async fn insert<'e, E>(&self, exec: E) -> Result<(), sqlx::Error>
+    async fn insert<'e, E>(self, exec: E) -> Result<bool, sqlx::Error>
     where
         E: Executor<'e, Database = {{db}}>,
         for<'q> <{{db}} as sqlx::Database>::Arguments<'q>: Default + sqlx::IntoArguments<'q, {{db}}>,
     {
-        let sql = SqlBuilder::<Postgres, Self>::insert_on_conflict_update();
+        let sql = SqlBuilder::<{{db}}, Self>::insert();
+        let q = sqlx::query(&sql)
+            {{#each ../table.fields}}
+            .bind(&self.{{name}})
+            {{/each}}
+            .execute(exec)
+            .await;
+        match q {
+            Ok(_) => Ok(true),
+            Err(e) if e.as_database_error()
+                .and_then(|d| d.code()) == Some(std::borrow::Cow::Borrowed("23505")) => {
+                // 23505 = unique_violation
+                Ok(false)
+            }
+            Err(e) => Err(e.into())
+        }
+    }
+
+    async fn insert_update<'e, E>(self, exec: E) -> Result<(), sqlx::Error>
+    where
+        E: Executor<'e, Database = {{db}}>,
+        for<'q> <{{db}} as sqlx::Database>::Arguments<'q>: Default + sqlx::IntoArguments<'q, {{db}}>,
+    {
+        let sql = SqlBuilder::<{{db}}, Self>::insert_on_conflict_update();
         sqlx::query(&sql)
             {{#each ../table.fields}}
             .bind(&self.{{name}})
@@ -87,57 +109,57 @@ impl ModelOps<{{db}}> for {{snakeToCamel ../table.name}}
         E: Executor<'e, Database = {{db}}>,
         Self: for<'r> FromRow<'r, <{{db}} as sqlx::Database>::Row>
     {
-        let sql = SqlBuilder::<Postgres, Users>::select_all();
-        let recs = sqlx::query_as::<_, Users>(&sql)
+        let sql = SqlBuilder::<{{db}}, Self>::select_all();
+        let recs = sqlx::query_as::<_, Self>(&sql)
             .fetch_all(exec)
             .await?;
         Ok(recs)
     }
 
     async fn select_by_pk<'e, E>(
-        pk: Self::TypePK,
+        pk: &Self::TypePK,
         exec: E,
     ) -> Result<Option<Self>, sqlx::Error>
     where
         E: Executor<'e, Database = {{db}}>,
         Self: for<'r> FromRow<'r, <{{db}} as sqlx::Database>::Row>,
     {
-        let sql = SqlBuilder::<Postgres, Users>::select_by_pk();
-        let rec = sqlx::query_as::<_, Users>(&sql)
+        let sql = SqlBuilder::<{{db}}, Self>::select_by_pk();
+        let rec = sqlx::query_as::<_, Self>(&sql)
             .bind(pk)
             .fetch_optional(exec)
             .await?;
         Ok(rec)
     }
     
-    async fn delete<'e, E>(exec: E) -> Result<(), sqlx::Error>
+    async fn delete<'e, E>(exec: E) -> Result<bool, sqlx::Error>
     where
         E: Executor<'e, Database = {{db}}>
     {
-        let sql = SqlBuilder::<Postgres, Users>::delete_all();
-        sqlx::query(&sql)
+        let sql = SqlBuilder::<{{db}}, Self>::delete_all();
+        let r = sqlx::query(&sql)
             .execute(exec)
             .await?;
-        Ok(())
+        Ok(r.rows_affected() != 0)
     }
     
-    async fn delete_by_pk<'e, E>(pk: Self::TypePK, exec: E) -> Result<(), sqlx::Error>
+    async fn delete_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> Result<bool, sqlx::Error>
     where
         E: Executor<'e, Database = {{db}}>
     {
-        let sql = SqlBuilder::<Postgres, Users>::delete_by_pk();
-        sqlx::query(&sql)
+        let sql = SqlBuilder::<{{db}}, Self>::delete_by_pk();
+        let r = sqlx::query(&sql)
             .bind(pk)
             .execute(exec)
             .await?;
-        Ok(())
+        Ok(r.rows_affected() != 0)
     }
     
     async fn count<'e, E>(exec: E) -> Result<i64, sqlx::Error>
     where
         E: Executor<'e, Database = {{db}}> {
         use sqlx::Row;
-        let sql = SqlBuilder::<Postgres, Users>::count();
+        let sql = SqlBuilder::<{{db}}, Self>::count();
         let rec = sqlx::query(&sql)
             .fetch_one(exec)
             .await?;
