@@ -1,7 +1,7 @@
 use crate::prelude::OrmDB;
 
-
-pub struct Orm<E>
+#[derive(Clone)]
+pub struct Orm<E : Clone>
 {
     pub(crate) executor: E
 }
@@ -13,18 +13,23 @@ impl<DB : OrmDB> Orm<sqlx::Pool<DB>>
             executor: pool,
         }
     }
-    pub async fn begin_tx(&self) -> Result<Orm<TXInner<DB>>, Box<dyn std::error::Error>> {
+
+    pub fn get_executor<'a, 'b>(&'a self) -> &'b sqlx::Pool<DB> where 'a: 'b { &self.executor }
+
+    pub async fn begin_tx(&self) -> Result<OrmTX<DB>, Box<dyn std::error::Error>> {
         let v = self.executor.begin().await?;
-        Ok(Orm { executor: TXInner { inner: v }})
+        Ok(OrmTX { inner: v })
     }
 }
 
 
-pub struct TXInner<DB: OrmDB> {
+pub struct OrmTX<DB: OrmDB> {
     pub inner: sqlx::Transaction<'static, DB>,
 }
 
-impl<DB: OrmDB> TXInner<DB> {
+impl<DB: OrmDB> OrmTX<DB> {
+    pub fn get_inner(&mut self) -> &mut <DB as sqlx::Database>::Connection { &mut *self.inner }
+
     pub async fn commit(self) -> Result<(), sqlx::Error> {
         self.inner.commit().await
     }
