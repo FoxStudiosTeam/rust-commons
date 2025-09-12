@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use sqlx::{Executor, FromRow, IntoArguments, query::{Query, QueryAs}};
+use sqlx::{Executor, FromRow, IntoArguments, query::QueryAs};
 
 use crate::prelude::OrmDB;
 
@@ -36,37 +36,37 @@ where
     Self::NonActive : for<'r> FromRow<'r, <DB as sqlx::Database>::Row>,
 {
     type NonActive;
-    fn save<'e, E>(self, exec: E, mode: SaveMode) -> impl std::future::Future<Output = Result<Option<Self::NonActive>, sqlx::Error>> + Send
+    fn save<'e, E>(self, exec: E, mode: SaveMode) -> impl std::future::Future<Output = Result<Option<Self::NonActive>, anyhow::Error>> + Send
     where
         E: Executor<'e, Database = DB>,
         for<'q> <DB as sqlx::Database>::Arguments<'q>: Default + sqlx::IntoArguments<'q, DB>
         ;
     fn complete_query<'s, 'q, T>(&'s self, q: QueryAs<'q, DB, T, <DB as sqlx::Database>::Arguments<'q>>)
     -> sqlx::query::QueryAs<'q,sqlx::Postgres,T, <sqlx::Postgres as sqlx::Database> ::Arguments<'q> > where 's: 'q;
-    fn insert<'e, E>(self, exec: E) -> impl std::future::Future<Output = Result<Option<Self::NonActive>, sqlx::Error>> + Send
+    fn insert<'e, E>(self, exec: E) -> impl std::future::Future<Output = Result<Option<Self::NonActive>, anyhow::Error>> + Send
     where
         E: Executor<'e, Database = DB>,
         for<'q> <DB as sqlx::Database>::Arguments<'q>: Default + sqlx::IntoArguments<'q, DB>
         ;
-    fn update<'e, E>(self, exec: E) -> impl std::future::Future<Output = Result<Option<Self::NonActive>, sqlx::Error>> + Send
+    fn update<'e, E>(self, exec: E) -> impl std::future::Future<Output = Result<Option<Self::NonActive>, anyhow::Error>> + Send
     where
         E: Executor<'e, Database = DB>,
         for<'q> <DB as sqlx::Database>::Arguments<'q>: Default + sqlx::IntoArguments<'q, DB>
         ;
-    fn upsert<'e, E>(self, exec: E) -> impl std::future::Future<Output = Result<Option<Self::NonActive>, sqlx::Error>> + Send
+    fn upsert<'e, E>(self, exec: E) -> impl std::future::Future<Output = Result<Option<Self::NonActive>, anyhow::Error>> + Send
     where
         E: Executor<'e, Database = DB>,
         for<'q> <DB as sqlx::Database>::Arguments<'q>: Default + sqlx::IntoArguments<'q, DB>
         ;
-    fn select_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> impl std::future::Future<Output = Result<Option<Self::NonActive>, sqlx::Error>> + Send
+    fn select_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> impl std::future::Future<Output = Result<Option<Self::NonActive>, anyhow::Error>> + Send
     where
         E: Executor<'e, Database = DB>,
         Self: for<'r> FromRow<'r, <DB as sqlx::Database>::Row>
         ;
-    fn delete_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> impl std::future::Future<Output = Result<Option<Self::NonActive>, sqlx::Error>> + Send
+    fn delete_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> impl std::future::Future<Output = Result<Option<Self::NonActive>, anyhow::Error>> + Send
     where
         E: Executor<'e, Database = DB>;
-    fn count<'e, E>(exec: E) -> impl std::future::Future<Output = Result<i64, sqlx::Error>> + Send
+    fn count<'e, E>(exec: E) -> impl std::future::Future<Output = Result<i64, anyhow::Error>> + Send
     where
         E: Executor<'e, Database = DB>;
 }
@@ -109,7 +109,7 @@ where
         }
     }
     
-    pub fn save(self, data: T, mode: SaveMode) -> impl std::future::Future<Output = Result<Option<<T as ModelOps<DB>>::NonActive>, sqlx::Error>> + Send {
+    pub fn save(self, data: T, mode: SaveMode) -> impl std::future::Future<Output = Result<Option<<T as ModelOps<DB>>::NonActive>, anyhow::Error>> + Send {
         data.save(self.executor, mode)
     }
 
@@ -146,13 +146,13 @@ where
         }
     }
     
-    pub fn select_by_pk(self, key: &T::TypePK) -> impl std::future::Future<Output = Result<Option<<T as ModelOps<DB>>::NonActive>, sqlx::Error>> + Send {
+    pub fn select_by_pk(self, key: &T::TypePK) -> impl std::future::Future<Output = Result<Option<<T as ModelOps<DB>>::NonActive>, anyhow::Error>> + Send {
         T::select_by_pk(key, self.executor)
     }
-    pub fn delete_by_pk(self, key: &T::TypePK) -> impl std::future::Future<Output = Result<Option<<T as ModelOps<DB>>::NonActive>, sqlx::Error>> + Send {
+    pub fn delete_by_pk(self, key: &T::TypePK) -> impl std::future::Future<Output = Result<Option<<T as ModelOps<DB>>::NonActive>, anyhow::Error>> + Send {
         T::delete_by_pk(key, self.executor)
     }
-    pub fn count(self) -> impl std::future::Future<Output = Result<i64, sqlx::Error>> + Send {
+    pub fn count(self) -> impl std::future::Future<Output = Result<i64, anyhow::Error>> + Send {
         T::count(self.executor)
     }
 }
@@ -171,20 +171,15 @@ where
         self.q = self.q.bind(value);
         self
     }
-    pub async fn fetch(self) -> Result<Vec<Out>, sqlx::Error>
+    pub async fn fetch(self) -> Result<Vec<Out>, anyhow::Error>
     where
         Out: Send + Unpin + for<'r> FromRow<'r, <DB as sqlx::Database>::Row>
     {
-        self.q.fetch_all(self.executor).await
+        Ok(self.q.fetch_all(self.executor).await?)
     }
 }
 
 
-
-
-
-
-//todo!
 pub struct TxSelector<'e, DB, T>
 where
     T: TableSelector,
@@ -221,7 +216,7 @@ where
         }
     }
     
-    pub fn save(self, data: T, mode: SaveMode) -> impl std::future::Future<Output = Result<Option<<T as ModelOps<DB>>::NonActive>, sqlx::Error>> + Send {
+    pub fn save(self, data: T, mode: SaveMode) -> impl std::future::Future<Output = Result<Option<<T as ModelOps<DB>>::NonActive>, anyhow::Error>> + Send {
         data.save(self.executor, mode)
     }
 
@@ -258,13 +253,13 @@ where
         }
     }
     
-    pub fn select_by_pk(self, key: &T::TypePK) -> impl std::future::Future<Output = Result<Option<<T as ModelOps<DB>>::NonActive>, sqlx::Error>> + Send {
+    pub fn select_by_pk(self, key: &T::TypePK) -> impl std::future::Future<Output = Result<Option<<T as ModelOps<DB>>::NonActive>, anyhow::Error>> + Send {
         T::select_by_pk(key, self.executor)
     }
-    pub fn delete_by_pk(self, key: &T::TypePK) -> impl std::future::Future<Output = Result<Option<<T as ModelOps<DB>>::NonActive>, sqlx::Error>> + Send {
+    pub fn delete_by_pk(self, key: &T::TypePK) -> impl std::future::Future<Output = Result<Option<<T as ModelOps<DB>>::NonActive>, anyhow::Error>> + Send {
         T::delete_by_pk(key, self.executor)
     }
-    pub fn count(self) -> impl std::future::Future<Output = Result<i64, sqlx::Error>> + Send {
+    pub fn count(self) -> impl std::future::Future<Output = Result<i64, anyhow::Error>> + Send {
         T::count(self.executor)
     }
 }
@@ -282,10 +277,10 @@ where
         self.q = self.q.bind(value);
         self
     }
-    pub async fn fetch(self) -> Result<Vec<Out>, sqlx::Error>
+    pub async fn fetch(self) -> Result<Vec<Out>, anyhow::Error>
     where
         Out: Send + Unpin + for<'r> FromRow<'r, <DB as sqlx::Database>::Row>
     {
-        self.q.fetch_all(self.executor).await
+        Ok(self.q.fetch_all(self.executor).await?)
     }
 }

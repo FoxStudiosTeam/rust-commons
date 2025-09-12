@@ -63,7 +63,7 @@ pub fn generate_migration<P: AsRef<std::path::Path>>(mut schema : Schema, out_di
         rendered
     )?;
     tracing::info!("Migration generated!");
-    let encoded = bincode::serde::encode_to_vec(&prev_state, bincode::config::standard()).unwrap();
+    let encoded = bincode::serde::encode_to_vec(&prev_state, bincode::config::standard()).inspect_err(|e| tracing::error!("Can't encode state: {}", e))?;
     std::fs::write(state_path, encoded)?;
     tracing::info!("Latest state saved!");
     Ok(())

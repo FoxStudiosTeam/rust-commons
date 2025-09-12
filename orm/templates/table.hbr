@@ -1,6 +1,5 @@
 // THIS FILE IS GENERATED, NOT FOR MANUAL EDIT
 use sqlx::{Executor, FromRow};
-
 use sqlx::query::QueryAs;
 use orm::prelude::*;
 use sqlx::Pool;
@@ -46,7 +45,7 @@ pub trait Orm{{snakeToPascal table.name}}<DB: OrmDB> {
 }
 
 pub trait OrmTX{{snakeToPascal table.name}}<'c, DB: OrmDB> {
-    fn {{table.name}}(&'c mut self) -> TxSelectorInteractions<'c, DB, Active{{snakeToPascal table.name}}>;
+    fn {{table.name}}(&'c mut self) -> TxSelector<'c, DB, Active{{snakeToPascal table.name}}>;
 }
 
 impl TableSelector for Active{{snakeToPascal table.name}} {
@@ -98,9 +97,9 @@ impl Orm{{snakeToPascal ../table.name}}<{{db}}> for Orm<Pool<{{db}}>>
 #[cfg(feature="{{feature}}")]
 impl<'c> OrmTX{{snakeToPascal ../table.name}}<'c, {{db}}> for OrmTX<{{db}}>
 {
-    fn {{../table.name}}(&'c mut self) -> TxSelectorInteractions<'c, {{db}}, Active{{snakeToPascal ../table.name}}>
+    fn {{../table.name}}(&'c mut self) -> TxSelector<'c, {{db}}, Active{{snakeToPascal ../table.name}}>
     {
-        TxSelectorInteractions::new(self.get_inner())
+        TxSelector::new(self.get_inner())
     }
 }
 
@@ -108,7 +107,7 @@ impl<'c> OrmTX{{snakeToPascal ../table.name}}<'c, {{db}}> for OrmTX<{{db}}>
 impl ModelOps<{{db}}> for Active{{snakeToPascal ../table.name}} 
 {
     type NonActive = {{snakeToPascal ../table.name}};
-    async fn save<'e,E>(self, exec: E, mode: SaveMode) -> Result<Option<Self::NonActive>, sqlx::Error> 
+    async fn save<'e,E>(self, exec: E, mode: SaveMode) -> Result<Option<Self::NonActive>, anyhow::Error> 
     where E: Executor<'e, Database = {{db}}> ,for<'q> <{{db}} as sqlx::Database>::Arguments<'q> :Default+sqlx::IntoArguments<'q, {{db}}>  {
         match mode {
             Insert => self.insert(exec).await,
@@ -125,9 +124,9 @@ impl ModelOps<{{db}}> for Active{{snakeToPascal ../table.name}}
         q
     }
     
-    async fn insert<'e,E>(self, exec: E) -> Result<Option<Self::NonActive>, sqlx::Error> 
+    async fn insert<'e,E>(self, exec: E) -> Result<Option<Self::NonActive>, anyhow::Error> 
     where E: Executor<'e, Database = {{db}}> ,for<'q> <{{db}} as sqlx::Database>::Arguments<'q> :Default+sqlx::IntoArguments<'q, {{db}}>  {
-        let sql = <Self as SqlBuilder<{{db}}>>::insert_for(&self).unwrap();
+        let sql = <Self as SqlBuilder<{{db}}>>::insert_for(&self)?;
         tracing::debug!("Insert sql: {}", sql);
         let incomplete = sqlx::query_as::<_, Self::NonActive>(&sql);
         let complete = self.complete_query(incomplete);
@@ -144,39 +143,42 @@ impl ModelOps<{{db}}> for Active{{snakeToPascal ../table.name}}
             Err(e) => Err(e.into())
         }
     }
-    async fn upsert<'e,E>(self, exec: E) -> Result<Option<Self::NonActive>, sqlx::Error> 
+    async fn upsert<'e,E>(self, exec: E) -> Result<Option<Self::NonActive>, anyhow::Error> 
     where E: Executor<'e, Database = {{db}}> ,for<'q> <{{db}} as sqlx::Database>::Arguments<'q> :Default+sqlx::IntoArguments<'q, {{db}}>  {
-        let sql = <Self as SqlBuilder<{{db}}>>::upsert_for(&self).unwrap();
+        let sql = <Self as SqlBuilder<{{db}}>>::upsert_for(&self)?;
         tracing::debug!("Upsert sql: {}", sql);
         let incomplete = sqlx::query_as::<_, Self::NonActive>(&sql);
         let complete = self.complete_query(incomplete);
-        complete
+        let r = complete
             .fetch_optional(exec)
-            .await
+            .await?;
+        Ok(r)
     }
-    async fn update<'e,E>(self, exec: E) -> Result<Option<Self::NonActive>, sqlx::Error> 
+    async fn update<'e,E>(self, exec: E) -> Result<Option<Self::NonActive>, anyhow::Error> 
     where E: Executor<'e, Database = {{db}}> ,for<'q> <{{db}} as sqlx::Database>::Arguments<'q> :Default+sqlx::IntoArguments<'q, {{db}}>  {
-        let sql = <Self as SqlBuilder<{{db}}>>::update_for(&self).unwrap();
+        let sql = <Self as SqlBuilder<{{db}}>>::update_for(&self)?;
         tracing::debug!("Update sql: {}", sql);
         let incomplete = sqlx::query_as::<_, Self::NonActive>(&sql);
         let complete = self.complete_query(incomplete);
-        complete
+        let r = complete
             .fetch_optional(exec)
-            .await
+            .await?;
+        Ok(r)
     }
 
-    async fn select_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> Result<Option<Self::NonActive>, sqlx::Error>
+    async fn select_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> Result<Option<Self::NonActive>, anyhow::Error>
     where
         E: Executor<'e, Database = {{db}}>
     {
         let sql = <Self as SqlBuilder<{{db}}>>::select_by_pk();
-        sqlx::query_as::<_, Self::NonActive>(&sql)
+        let r = sqlx::query_as::<_, Self::NonActive>(&sql)
             .bind(pk)
             .fetch_optional(exec)
-            .await
+            .await?;
+        Ok(r)
     }
 
-    async fn delete_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> Result<Option<Self::NonActive>, sqlx::Error>
+    async fn delete_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> Result<Option<Self::NonActive>, anyhow::Error>
     where
         E: Executor<'e, Database = {{db}}>
     {
@@ -188,7 +190,7 @@ impl ModelOps<{{db}}> for Active{{snakeToPascal ../table.name}}
         Ok(r)
     }
     
-    async fn count<'e, E>(exec: E) -> Result<i64, sqlx::Error>
+    async fn count<'e, E>(exec: E) -> Result<i64, anyhow::Error>
     where
         E: Executor<'e, Database = {{db}}> {
         use sqlx::Row;

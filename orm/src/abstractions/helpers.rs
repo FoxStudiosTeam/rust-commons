@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use sqlx::{Database, Decode, Type, TypeInfo, ValueRef};
 
 use crate::prelude::*;
@@ -78,14 +80,20 @@ pub enum OrmError {
     NothingToInsert,
 }
 
-impl ToString for OrmError {
-    fn to_string(&self) -> String {
+impl Display for OrmError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            OrmError::MissingValue(name) => format!("Missing value for {}", name),
-            OrmError::NothingToUpdate => "Nothing to update".to_string(),
-            OrmError::MissingPrimaryKey => "Missing primary key".to_string(),
-            OrmError::NothingToInsert => "Nothing to insert".to_string(),
+            OrmError::MissingValue(name) => write!(f, "Missing value for {}", name),
+            OrmError::NothingToUpdate => write!(f, "Nothing to update"),
+            OrmError::MissingPrimaryKey => write!(f, "Missing primary key"),
+            OrmError::NothingToInsert => write!(f, "Nothing to insert"),
         }
+    }
+}
+
+impl std::error::Error for OrmError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
     }
 }
 
