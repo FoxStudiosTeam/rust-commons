@@ -100,7 +100,9 @@ where
     for<'a> <DB as sqlx::Database>::Arguments<'a>: IntoArguments<'a, DB>,
     &'e E: Executor<'e, Database = DB>,
 {
-    pub fn new(executor: &'e E) -> Self {
+    pub fn new(
+        executor: &'e E,
+    ) -> Self {
         Self {
             q_src: Default::default(),
             _g: PhantomData,

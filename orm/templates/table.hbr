@@ -116,8 +116,8 @@ impl ModelOps<{{db}}> for Active{{snakeToPascal ../table.name}}
         }
     }
 
-        fn complete_query<'s, 'q, T>(&'s self, mut q: QueryAs<'q, {{db}}, T, <{{db}} as sqlx::Database>::Arguments<'q>>)
-    -> sqlx::query::QueryAs<'q,{{db}},T, <{{db}} as sqlx::Database>::Arguments<'q> > where 's: 'q {
+    fn complete_query<'s, 'q, T>(&'s self, mut q: QueryAs<'q, {{db}}, T, <{{db}} as sqlx::Database>::Arguments<'q>>)
+        -> sqlx::query::QueryAs<'q,{{db}},T, <{{db}} as sqlx::Database>::Arguments<'q> > where 's: 'q {
         {{#each ../table.fields}}
         if let Set(v) = &self.{{name}} {tracing::debug!("Binded {{name}}"); q = q.bind(v);}
         {{/each}}

@@ -14,11 +14,13 @@ impl<DB : OrmDB> Orm<sqlx::Pool<DB>>
         }
     }
 
-    pub fn get_executor<'a, 'b>(&'a self) -> &'b sqlx::Pool<DB> where 'a: 'b { &self.executor }
+   pub fn get_executor<'a, 'b>(&'a self) -> &'b sqlx::Pool<DB> where 'a: 'b { &self.executor }
 
     pub async fn begin_tx(&self) -> Result<OrmTX<DB>, Box<dyn std::error::Error>> {
         let v = self.executor.begin().await?;
-        Ok(OrmTX { inner: v })
+        Ok(OrmTX { 
+            inner: v 
+        })
     }
 }
 

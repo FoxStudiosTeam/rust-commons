@@ -8,7 +8,6 @@ use crate::prelude::*;
 pub struct Null;
 
 #[derive(Clone, Debug, Default)]
-// pub struct Optional<T>(Option<T>);
 pub enum Optional<T>{
     Set(T),
     #[default]
@@ -97,7 +96,6 @@ impl std::error::Error for OrmError {
     }
 }
 
-// + for<'r> FromRow<'r, <DB as sqlx::Database>::Row> + for <'r> sqlx::Encode<'r, DB> + for <'r> sqlx::Decode<'r, DB> + sqlx::Type<DB>
 impl<T, DB: OrmDB> SqlBuilder<DB> for T
 where T: TableSelector
 {
