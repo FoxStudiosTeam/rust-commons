@@ -3,6 +3,7 @@
 DROP TABLE {{this.schema}}.{{this.name}};
 {{/each}}
 
+
 {{!-- Tables Changed --}}
 {{#each changed}}
   {{#each removed}}
@@ -11,22 +12,55 @@ DROP TABLE {{this.schema}}.{{this.name}};
   {{/each}}
 
   {{#each changed}}
-    {{#if field_type}}
+    {{!-- Type change (always present if different) --}}
+    {{#if type_str}}
     ALTER TABLE {{../schema}}.{{../name}}
-      ALTER COLUMN {{name}} TYPE {{field_type}};
+      ALTER COLUMN {{name}} TYPE {{type_str}};
     {{/if}}
-    {{#if (eq pk false)}}
+
+    {{!-- Nullability change --}}
+    {{#if nullable}}
     ALTER TABLE {{../schema}}.{{../name}}
-      DROP CONSTRAINT {{../name}}_pkey;
+      ALTER COLUMN {{name}} {{#if (eq nullable true)}}DROP NOT NULL{{else}}SET NOT NULL{{/if}};
     {{/if}}
-    {{#if (eq pk true)}}
+
+    {{!-- Default change --}}
+    {{#if default}}
     ALTER TABLE {{../schema}}.{{../name}}
-      ADD PRIMARY KEY ({{name}});
+      ALTER COLUMN {{name}} {{#if default}}SET DEFAULT {{default}}{{else}}DROP DEFAULT{{/if}};
+    {{/if}}
+
+    {{!-- Unique change --}}
+    {{#if is_unique}}
+      {{#if (eq is_unique true)}}
+      ALTER TABLE {{../schema}}.{{../name}}
+        ADD CONSTRAINT {{../name}}_{{name}}_unique UNIQUE ({{name}});
+      {{else}}
+      ALTER TABLE {{../schema}}.{{../name}}
+        DROP CONSTRAINT IF EXISTS {{../name}}_{{name}}_unique;
+      {{/if}}
+    {{/if}}
+
+    {{!-- Primary key change --}}
+    {{#if pk}}
+      {{#if (eq pk true)}}
+      ALTER TABLE {{../schema}}.{{../name}}
+        ADD PRIMARY KEY ({{name}});
+      {{else}}
+      ALTER TABLE {{../schema}}.{{../name}}
+        DROP CONSTRAINT {{../name}}_pkey;
+      {{/if}}
     {{/if}}
   {{/each}}
+
+  {{!-- New fields --}}
   {{#each added}}
   ALTER TABLE {{../schema}}.{{../name}}
-    ADD COLUMN {{name}} {{type}}{{#if isPrimary}} PRIMARY KEY{{/if}};
+    ADD COLUMN {{name}} {{type_str}}
+      {{#if is_primary}} PRIMARY KEY{{/if}}
+      {{#if is_unique}} UNIQUE{{/if}}
+      {{#unless nullable}} NOT NULL{{/unless}}
+      {{#if default}} DEFAULT {{default}}{{/if}};
   {{/each}}
 {{/each}}
 
@@ -36,9 +70,11 @@ DROP TABLE {{this.schema}}.{{this.name}};
 CREATE SCHEMA IF NOT EXISTS {{this.schema}};
 CREATE TABLE IF NOT EXISTS {{this.schema}}.{{this.name}} (
   {{#each this.fields}}
-  {{name}} {{type}}{{#if isPrimary}} PRIMARY KEY{{/if}}{{#unless @last}},{{/unless}}
+  {{name}} {{type_str}}
+    {{#if is_primary}} PRIMARY KEY{{/if}}
+    {{#if is_unique}} UNIQUE{{/if}}
+    {{#unless nullable}} NOT NULL{{/unless}}
+    {{#if default}} DEFAULT {{default}}{{/if}}{{#unless @last}},{{/unless}}
   {{/each}}
 );
 {{/each}}
-
-

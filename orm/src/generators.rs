@@ -28,26 +28,40 @@ pub struct LatestMigrationState {
 pub fn generate_migration<P: AsRef<std::path::Path>>(mut schema : Schema, out_dir: P, migration_name: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
     let mut reg = handlebars::Handlebars::new();
     reg.register_template_string("migration_template", MIGRATION_TEMPLATE)?;
-    schema.change_mappings(TypeMapping::Pg);
-    let state_path = out_dir.as_ref().join("latest").with_extension("migration");
+    schema.change_mappings(TypeMapping::Pg)?;
+    let state_path = out_dir.as_ref().join("latest").with_extension("migration_state");
     
     let mut prev_state = std::fs::read(&state_path)
+        .inspect_err(|_e| tracing::info!("No previous state found, starting from scratch"))
         .ok()
         .and_then(|v| 
             bincode::serde::decode_from_slice::<LatestMigrationState, _>(&v, bincode::config::standard()).ok()
                 .map(|v|v.0)
-        ).unwrap_or_default();
-    
+        )
+        .unwrap_or_default();
     if schema == prev_state.state {
         tracing::info!("No changes in schema");
         return Ok(());
     }
-
+    if prev_state.latest != 0 {
+        std::fs::rename(
+            &state_path, 
+            out_dir
+                .as_ref()
+                .join(format!("V{}", prev_state.latest))
+                .with_extension("migration_state")
+            ).expect("Can't rename migration file");
+    }
     prev_state.latest += 1;
-    let diff = prev_state.state.difference(&schema);
+    let diff = prev_state.state.difference(&schema)?;
     prev_state.state = schema;
     let rendered = reg.render("migration_template", &diff)?;
-    std::fs::write(out_dir.as_ref().join(format!("V{}__{}.sql", prev_state.latest, migration_name.unwrap_or("migration"))), rendered)?;
+    std::fs::write(
+        out_dir.as_ref().join(format!("V{}__{}.sql", 
+        prev_state.latest, 
+        migration_name.unwrap_or("migration"))), 
+        rendered
+    )?;
     tracing::info!("Migration generated!");
     let encoded = bincode::serde::encode_to_vec(&prev_state, bincode::config::standard()).unwrap();
     std::fs::write(state_path, encoded)?;
@@ -72,7 +86,7 @@ pub fn generate_rust_bindings<P: AsRef<std::path::Path>>(schema : &Schema, out_d
 
     std::fs::write(out_dir.as_ref().join("mod.rs"), tables_mod)?;
     
-    for (name, table) in schema.tables.iter() {
+    for (name, table) in schema.get_tables().iter() {
         let table = TableDBs{table, dbs};
         let rendered = reg.render("table_template", &table)?;
         std::fs::write(out_dir.as_ref()

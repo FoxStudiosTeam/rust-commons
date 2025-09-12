@@ -84,20 +84,23 @@ impl RawYamlSchema {
 
 #[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq)]
 pub struct Schema {
-    pub tables: HashMap<String, Table>,
-    pub types: HashMap<String, Type>,
-    pub type_mapping: TypeMapping,
+    tables: HashMap<String, Table>,
+    types: HashMap<String, Type>,
+    type_mapping: TypeMapping,
 }
 
-#[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq, Eq, Hash)]
 pub enum TypeMapping {
     #[default]
     Rust,
     Pg,
 }
 
-
 impl Schema {
+    pub fn get_tables(&self) -> &HashMap<String, Table> {
+        &self.tables
+    } 
+
     pub fn from_dir<P: AsRef<Path>>(path: P) -> Result<Self> {
         Ok(RawYamlSchema::from_dir(path)?.flatten()?)
     }
@@ -137,57 +140,44 @@ pub struct SchemaDifference {
 }
 
 impl Schema {
-    pub fn get_types(&self, mapping: &TypeMapping) -> HashMap<String, String> {
-        if &self.type_mapping == mapping {
-            return self.types
-                .clone()
-                .into_iter()
-                .map(|(k, v)| {(k, v.inner)})
-                .collect()
-        }
-        self.types
-            .clone()
-            .into_iter()
-            .map(|(k, v)| {(v.inner, k)})
-            .collect()
+    pub fn get_types(&self) -> &HashMap<String, Type> {
+        &self.types
     }
 
-    pub fn change_mappings(&mut self, mapping: TypeMapping) {
-        let type_mappings = self.get_types(&mapping);
-
+    pub fn change_mappings(&mut self, mapping: TypeMapping) -> Result<()>{
+        let type_mappings = &self.types;
         for table in self.tables.values_mut() {
-            table.map_types(&type_mappings);
+            table.map_types(&mapping, type_mappings)?;
         }
-        self.types = type_mappings.into_iter().map(|(k, v)| {(k, Type{inner: v})}).collect();
         self.type_mapping = mapping;
+        Ok(())
     }
 
-    pub fn difference(&self, other: &Self) -> SchemaDifference {
+    pub fn difference(&self, other: &Self) -> Result<SchemaDifference> {
         let mut added = vec![];
         let mut removed = self.tables.clone();
         let mut changed = vec![];
         
-        let mut types = self.get_types(&TypeMapping::Pg);
-        let other_types = other.get_types(&TypeMapping::Pg);
-        types.extend(other_types);
+        let types = self.get_types();
+        let target = &self.type_mapping;
 
         for (key, value) in other.tables.iter() {
             if let Some(table) = removed.remove(key) {
-                table
-                    .difference(value)
-                    .map(|mut v| {v.map_types(&types); changed.push(v)} );
+                let Option::Some(mut table) = table.difference(value) else {continue};
+                table.map_types(target, &types)?;
+                changed.push(table);
             } else {
                 added.push(TableAdded(value.clone()));
             };
         }
-        SchemaDifference{
+        Ok(SchemaDifference{
             added, 
             removed: removed
                 .into_iter()
                 .map(|(_k, v)| TableRemoved(v))
                 .collect(), 
             changed
-        }
+        })
     }
 }
 
