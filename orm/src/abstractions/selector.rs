@@ -121,6 +121,14 @@ where
         self.interaction_builder("select", query)
     }
 
+    pub fn select_as<'q, O>(&'e mut self, query: &str) -> DBSelectorInteraction<'q, 'e, DB, E, O>
+    where 
+        'e: 'q, 
+        for<'r> O: FromRow<'r, <DB as sqlx::Database>::Row>
+    {   
+        self.interaction_builder("select", query)
+    }
+
     pub fn delete<'q>(&'e mut self, query: &str) -> DBSelectorInteraction<'q, 'e, DB, E, T>
     where 
         'e: 'q, 
@@ -129,10 +137,10 @@ where
         self.interaction_builder("delete", query)
     }
 
-    fn interaction_builder<'q>(&'e mut self, prefix: &str, query: &str) -> DBSelectorInteraction<'q, 'e, DB, E, T>
+    fn interaction_builder<'q, O>(&'e mut self, prefix: &str, query: &str) -> DBSelectorInteraction<'q, 'e, DB, E, O>
     where 
         'e: 'q, 
-        for<'r> T: FromRow<'r, <DB as sqlx::Database>::Row>
+        for<'r> O: FromRow<'r, <DB as sqlx::Database>::Row>
     {
         let q_src = if query.to_ascii_lowercase().trim().starts_with(prefix) {
             query.to_string()
@@ -141,7 +149,7 @@ where
         };
         self.q_src = q_src;
         DBSelectorInteraction {
-            q: sqlx::query_as::<DB, T>(&self.q_src),
+            q: sqlx::query_as::<DB, O>(&self.q_src),
             executor: self.executor
         }
     }
@@ -228,6 +236,15 @@ where
         self.interaction_builder("select", query)
     }
 
+    pub fn select_as<'q, O>(&'e mut self, query: &str) -> TxSelectorInteraction<'q, 'e, DB, O>
+    where 
+        'e: 'q, 
+        for<'r> O: FromRow<'r, <DB as sqlx::Database>::Row>
+    {   
+        self.interaction_builder("select", query)
+    }
+
+
     pub fn delete<'q>(&'e mut self, query: &str) -> TxSelectorInteraction<'q, 'e, DB, T>
     where 
         'e: 'q, 
@@ -236,10 +253,10 @@ where
         self.interaction_builder("delete", query)
     }
 
-    fn interaction_builder<'q>(&'e mut self, prefix: &str, query: &str) -> TxSelectorInteraction<'q, 'e, DB, T>
+    fn interaction_builder<'q, O>(&'e mut self, prefix: &str, query: &str) -> TxSelectorInteraction<'q, 'e, DB, O>
     where 
         'e: 'q, 
-        for<'r> T: FromRow<'r, <DB as sqlx::Database>::Row>
+        for<'r> O: FromRow<'r, <DB as sqlx::Database>::Row>
     {
         let q_src = if query.to_ascii_lowercase().trim().starts_with(prefix) {
             query.to_string()
@@ -248,7 +265,7 @@ where
         };
         self.q_src = q_src;
         TxSelectorInteraction {
-            q: sqlx::query_as::<DB, T>(&self.q_src),
+            q: sqlx::query_as::<DB, O>(&self.q_src),
             executor: self.executor
         }
     }
