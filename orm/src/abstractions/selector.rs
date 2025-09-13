@@ -115,10 +115,10 @@ where
         data.save(self.executor, mode)
     }
 
-    pub fn select<'q>(&'e mut self, query: &str) -> DBSelectorInteraction<'q, 'e, DB, E, T>
+    pub fn select<'q>(&'e mut self, query: &str) -> DBSelectorInteraction<'q, 'e, DB, E, <T as ModelOps<DB>>::NonActive>
     where 
         'e: 'q, 
-        for<'r> T: FromRow<'r, <DB as sqlx::Database>::Row>
+        for<'r> <T as ModelOps<DB>>::NonActive: FromRow<'r, <DB as sqlx::Database>::Row>
     {   
         self.interaction_builder("select", query)
     }
@@ -131,10 +131,10 @@ where
         self.interaction_builder("select", query)
     }
 
-    pub fn delete<'q>(&'e mut self, query: &str) -> DBSelectorInteraction<'q, 'e, DB, E, T>
+    pub fn delete<'q>(&'e mut self, query: &str) -> DBSelectorInteraction<'q, 'e, DB, E, <T as ModelOps<DB>>::NonActive>
     where 
         'e: 'q, 
-        for<'r> T: FromRow<'r, <DB as sqlx::Database>::Row>
+        for<'r> <T as ModelOps<DB>>::NonActive: FromRow<'r, <DB as sqlx::Database>::Row>
     {
         self.interaction_builder("delete", query)
     }
