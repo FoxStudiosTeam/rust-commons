@@ -56,12 +56,15 @@ impl<T> Operator<T, ParseError> for (T,) {
 
 /// ## That macro reads variables from env or/and file. 
 /// - It creates a struct and put it in global static which can be accessed from anywhere
+/// - Values will be parsed into the correct type and throw an error if parsing fails
 /// - It is lazy and will load everything at once only when it is first accessed   
 /// - It also supports default values, they will be used if env var is missing
 /// - It will panic if env var is missing and no default value
 /// - Filename is optional and very useful for local development
 /// - All fields is public by default
+/// - Visibility of struct and static can be set
 /// ```
+/// use utils::env_config;
 /// env_config!(
 ///     ".env" => pub(crate) ENV = pub(crate) Env {
 ///         SERVICE_AUTH_PORT : u16,
@@ -111,6 +114,12 @@ macro_rules! env_config {
                 $crate::helpers::env::dotenvy::from_filename_override($filename).ok(); // only for develop
                 $struct::new()
             });
+
+            impl $struct {
+                pub fn fetch() -> &'static Self {
+                    $crate::helpers::env::once_cell::sync::Lazy::force(&$glob)
+                }
+            }
         )*
     };
 }

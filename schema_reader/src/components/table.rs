@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use hashbrown::HashMap;
 use utils::wrappers;
+use anyhow::Result;
 
-use crate::prelude::{Field, Type};
+use crate::prelude::{ErrOr, Field, Type, TypeMapping, TypedField};
 
 #[derive(Clone, Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct RawTable {
@@ -26,20 +27,32 @@ impl RawTable {
 
 
 impl RawTable {
-    pub fn complete(mut self, types: &HashMap<String, Type>) -> Result<Table, String> {
+    pub fn complete(self, types: &HashMap<String, Type>) -> Result<Table, String> {
         let Some(schema) = self.schema else {
             return Err("Schema is required".to_string());
         };
-        for field in self.fields.iter_mut() {
-            let Some(t) = types.get(&field.field_type) else {
-                return Err(format!("Unknown type {}", field.field_type));
+        let mut pks = vec![];
+        let mut fields = vec![];
+        for field in self.fields.into_iter() {
+            if field.is_primary {
+                pks.push(field.name.clone());
+            }
+            let err_msg = format!("Unknown type {}", field.type_name);
+            let Some(typed_field) = field.into_typed(&crate::prelude::TypeMapping::default(), &types) else {
+                return Err(err_msg);
             };
-            field.field_type = t.inner.clone();
+            fields.push(typed_field);
+        }
+        if pks.len() > 1 {
+            return Err(format!("Table {} has multiple primary keys: {}", self.name, pks.join(", ")));
+        }
+        if pks.len() == 0 && !self.is_abstract {
+            return Err(format!("Table {} has no primary key", self.name));
         }
         Ok(Table {
             name: self.name,
             schema,
-            fields: self.fields,
+            fields,
         })
     }
 }
@@ -48,59 +61,78 @@ impl RawTable {
 pub struct Table {
     pub name: String,
     pub schema: String,
-    pub fields: Vec<Field>,
+    pub fields: Vec<TypedField>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct TableChanged {
     pub name: String,
     pub schema: String,
-    pub added: Vec<Field>,
-    pub removed: Vec<Field>, 
+    pub added: Vec<TypedField>,
+    pub removed: Vec<TypedField>, 
     pub changed: Vec<ChangedField>,
 }
 
 impl TableChanged {
-    pub fn map_types(&mut self, types_map: &HashMap<String, String>) {
-        for field in self.added.iter_mut() {
-            field.map_types(types_map);
-        }
-        for field in self.removed.iter_mut() {
-            field.map_types(types_map);
-        }
+    pub fn map_types(&mut self, target: &TypeMapping, types_map: &HashMap<String, Type>) -> Result<()> {
         for field in self.changed.iter_mut() {
-            field.map_types(types_map);
+            field.map_type(target, types_map)?;
         }
+        Ok(())
     }
 }
 
 #[derive(Debug, Serialize)]
 pub struct ChangedField {
     pub name: String,
+    pub type_name: String,
+    pub type_str: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pk: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub field_type: Option<String>,
+    pub default: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nullable: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_unique: Option<bool>,
 }
 
 impl ChangedField {
-    fn from_difference(kept: &Field, other: &Field) -> Option<Self> {
+    fn from_difference(kept: &TypedField, other: &TypedField) -> Option<Self> {
         if kept == other {
             return None;
         }
-        let pk = if other.is_primary != kept.is_primary { Some(other.is_primary) } else { None };
-        let field_type = if other.field_type != kept.field_type {Some(other.field_type.clone())} else { None };
-        if pk.is_none() && field_type.is_none() {
+
+        if other.type_name != kept.type_name || other.type_str != kept.type_str {
+            tracing::warn!(
+                "Type of field {} changed from {}({}) to {}({}). You will MUST manually complete the SQL migration.", 
+                kept.name, kept.type_name, kept.type_str, other.type_name, other.type_str
+            );
+        }
+        let mut changed = false;
+        let pk = if other.is_primary != kept.is_primary { changed = true; Some(other.is_primary) } else { None };
+        let default = if other.default != kept.default { changed = true; other.default.clone() } else { None };
+        let nullable = if other.nullable != kept.nullable { changed = true; Some(other.nullable) } else { None };
+        let is_unique = if other.is_unique != kept.is_unique { changed = true; Some(other.is_unique) } else { None };
+
+        if !changed {
             None
         } else {
-            Some(Self {name: kept.name.clone(), pk, field_type})
+            Some(Self {
+                name: other.name.clone(),
+                type_name: other.type_name.clone(),
+                type_str: other.type_str.clone(),
+                pk,
+                default,
+                nullable,
+                is_unique,
+            })
         }
     }
-    fn map_types(&mut self, types_map: &HashMap<String, String>) {
-        let Some(k) = &self.field_type else {return;};
-        if let Some(t) = types_map.get(k) {
-            self.field_type = Some(t.clone());
-        }
+
+    pub fn map_type(&mut self, target: &TypeMapping, mappings: &HashMap<String, Type>) -> anyhow::Result<()> {
+        self.type_str = mappings.get(&self.type_name).or_err::<anyhow::Error>("Unknown type")?.get_mapping(&target).to_string();
+        Ok(())
     }
 }
 
@@ -113,12 +145,11 @@ wrappers!(
 );
 
 impl Table {
-    pub fn map_types(&mut self, types_map: &HashMap<String, String>) {
+    pub fn map_types(&mut self, target: &TypeMapping, types_map: &HashMap<String, Type>) -> Result<()> {
         for field in self.fields.iter_mut() {
-            if let Some(t) = types_map.get(&field.field_type) {
-                field.field_type = t.clone();
-            }
+            field.map_type(target, types_map)?;
         }
+        Ok(())
     } 
     pub fn difference(&self, other: &Table) -> Option<TableChanged> {
         if self.schema != other.schema || self.name != other.name {

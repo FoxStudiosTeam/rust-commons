@@ -19,7 +19,7 @@ pub fn upper_first(
     Ok(())
 }
 
-pub fn snake_to_camel(
+pub fn snake_to_pascal(
     h: &Helper,
     _: &Handlebars,
     _: &Context,
@@ -54,6 +54,6 @@ pub trait SchemaReaderHelpers {
 impl SchemaReaderHelpers for Handlebars<'_> {
     fn register_schema_reader_helpers(&mut self) {
         self.register_helper("upperFirst", Box::new(upper_first));
-        self.register_helper("snakeToCamel", Box::new(snake_to_camel));
+        self.register_helper("snakeToPascal", Box::new(snake_to_pascal));
     }
 }

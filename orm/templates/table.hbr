@@ -1,42 +1,82 @@
 // THIS FILE IS GENERATED, NOT FOR MANUAL EDIT
 use sqlx::{Executor, FromRow};
-
+use sqlx::query::QueryAs;
 use orm::prelude::*;
 use sqlx::Pool;
 
-#[derive(Clone,Debug)]
-#[derive(FromRow)]
-pub struct {{snakeToCamel table.name}} {
+#[derive(Clone, Debug, FromRow)]
+pub struct {{snakeToPascal table.name}} {
     {{#each table.fields}}
-    pub {{name}}: {{type}},
+    pub {{name}}: {{#if nullable}}Option<{{type_str}}>{{else}}{{type_str}}{{/if}},
     {{/each}}
 }
 
-pub trait Orm{{snakeToCamel table.name}}<DB: OrmDB> {
-    fn {{table.name}}<'e>(&'e self) -> SelectorInteractions<'e, DB, Pool<DB>, {{snakeToCamel table.name}}>
+impl {{snakeToPascal table.name}} {
+    pub fn into_active(self) -> Active{{snakeToPascal table.name}} {
+        Active{{snakeToPascal table.name}} {
+            {{#each table.fields}}
+            {{name}}: Set(self.{{name}}),
+            {{/each}}
+        }
+    }
+}
+
+#[derive(Clone,Debug, Default, FromRow)]
+pub struct Active{{snakeToPascal table.name}} {
+    {{#each table.fields}}
+    pub {{name}}: Optional<{{#if nullable}}Option<{{type_str}}>{{else}}{{type_str}}{{/if}}>,
+    {{/each}}
+}
+
+impl Active{{snakeToPascal table.name}} {
+    pub fn into_{{table.name}}(self) -> Option<{{snakeToPascal table.name}}> {
+        Some({{snakeToPascal table.name}} {
+            {{#each table.fields}}
+            {{name}}: self.{{name}}.into_option()?,
+            {{/each}}
+        })
+    }
+}
+
+pub trait Orm{{snakeToPascal table.name}}<DB: OrmDB> {
+    fn {{table.name}}<'e>(&'e self) -> DBSelector<'e, DB, Pool<DB>, Active{{snakeToPascal table.name}}>
     where 
         &'e Pool<DB>: Executor<'e, Database = DB>;
 }
 
-pub trait OrmTX{{snakeToCamel table.name}}<'c, DB: OrmDB> {
-    fn {{table.name}}(&'c mut self) -> TxSelectorInteractions<'c, DB, {{snakeToCamel table.name}}>;
+pub trait OrmTX{{snakeToPascal table.name}}<'c, DB: OrmDB> {
+    fn {{table.name}}(&'c mut self) -> TxSelector<'c, DB, Active{{snakeToPascal table.name}}>;
 }
 
-impl TableSelector for {{snakeToCamel table.name}} {
+impl TableSelector for Active{{snakeToPascal table.name}} {
     const TABLE_NAME: &'static str = "{{table.name}}";
     const TABLE_SCHEMA: &'static str = "{{table.schema}}";
-    type TypePK = {{#each table.fields}}{{#if isPrimary}}{{type}}{{/if}}{{/each}};
+    type TypePK = {{#each table.fields}}{{#if is_primary}}{{type_str}}{{/if}}{{/each}};
     fn pk_column() -> &'static str {
         {{#each table.fields}}
-        {{#if isPrimary}}
+        {{#if is_primary}}
         "{{name}}"
         {{/if}}
         {{/each}}
     }
-    fn columns() -> &'static [&'static str] {
+    fn is_field_set(&self, field_name: &str) -> bool {
+        match field_name {
+            {{#each table.fields}}
+            "{{name}}" => self.{{name}}.is_set(),
+            {{/each}}
+            _ => unreachable!("Unknown field name: {}", field_name),
+        }
+    }
+    fn columns() -> &'static [ColumnDef] {
         &[
             {{#each table.fields}}
-            "{{name}}", 
+            ColumnDef{
+                name: "{{name}}",
+                nullable: {{nullable}},
+                default: {{#if default}}Some("{{default}}"){{else}}None{{/if}},
+                is_unique: {{is_unique}},
+                is_primary: {{is_primary}},
+            },
             {{/each}}
         ]
     }
@@ -44,126 +84,121 @@ impl TableSelector for {{snakeToCamel table.name}} {
 {{#each dbs}}
 
 #[cfg(feature="{{feature}}")]
-impl Orm{{snakeToCamel ../table.name}}<{{db}}> for Orm<Pool<{{db}}>>
+impl Orm{{snakeToPascal ../table.name}}<{{db}}> for Orm<Pool<{{db}}>>
 {
-    fn {{../table.name}}<'e>(&'e self) -> SelectorInteractions<'e, {{db}}, Pool<{{db}}>, {{snakeToCamel ../table.name}}>
+    fn {{../table.name}}<'e>(&'e self) -> DBSelector<'e, {{db}}, Pool<{{db}}>, Active{{snakeToPascal ../table.name}}>
     where 
         &'e Pool<{{db}}>: Executor<'e, Database = {{db}}>
     {
-        SelectorInteractions::new(&self.get_executor())
+        DBSelector::new(&self.get_executor())
     }
 }
 
 #[cfg(feature="{{feature}}")]
-impl<'c> OrmTX{{snakeToCamel ../table.name}}<'c, {{db}}> for OrmTX<{{db}}>
+impl<'c> OrmTX{{snakeToPascal ../table.name}}<'c, {{db}}> for OrmTX<{{db}}>
 {
-    fn {{../table.name}}(&'c mut self) -> TxSelectorInteractions<'c, {{db}}, {{snakeToCamel ../table.name}}>
+    fn {{../table.name}}(&'c mut self) -> TxSelector<'c, {{db}}, Active{{snakeToPascal ../table.name}}>
     {
-        TxSelectorInteractions::new(self.get_inner())
+        TxSelector::new(self.get_inner())
     }
 }
 
 #[cfg(feature="{{feature}}")]
-impl ModelOps<{{db}}> for {{snakeToCamel ../table.name}} 
+impl ModelOps<{{db}}> for Active{{snakeToPascal ../table.name}} 
 {
-    async fn insert<'e, E>(self, exec: E) -> Result<bool, sqlx::Error>
-    where
-        E: Executor<'e, Database = {{db}}>,
-        for<'q> <{{db}} as sqlx::Database>::Arguments<'q>: Default + sqlx::IntoArguments<'q, {{db}}>,
-    {
-        let sql = SqlBuilder::<{{db}}, Self>::insert();
-        let q = sqlx::query(&sql)
-            {{#each ../table.fields}}
-            .bind(&self.{{name}})
-            {{/each}}
-            .execute(exec)
+    type NonActive = {{snakeToPascal ../table.name}};
+    async fn save<'e,E>(self, exec: E, mode: SaveMode) -> Result<Option<Self::NonActive>, anyhow::Error> 
+    where E: Executor<'e, Database = {{db}}> ,for<'q> <{{db}} as sqlx::Database>::Arguments<'q> :Default+sqlx::IntoArguments<'q, {{db}}>  {
+        match mode {
+            Insert => self.insert(exec).await,
+            Update => self.update(exec).await,
+            Upsert => self.upsert(exec).await
+        }
+    }
+
+    fn complete_query<'s, 'q, T>(&'s self, mut q: QueryAs<'q, {{db}}, T, <{{db}} as sqlx::Database>::Arguments<'q>>)
+        -> sqlx::query::QueryAs<'q,{{db}},T, <{{db}} as sqlx::Database>::Arguments<'q> > where 's: 'q {
+        {{#each ../table.fields}}
+        if let Set(v) = &self.{{name}} {tracing::debug!("Binded {{name}}"); q = q.bind(v);}
+        {{/each}}
+        q
+    }
+    
+    async fn insert<'e,E>(self, exec: E) -> Result<Option<Self::NonActive>, anyhow::Error> 
+    where E: Executor<'e, Database = {{db}}> ,for<'q> <{{db}} as sqlx::Database>::Arguments<'q> :Default+sqlx::IntoArguments<'q, {{db}}>  {
+        let sql = <Self as SqlBuilder<{{db}}>>::insert_for(&self)?;
+        tracing::debug!("Insert sql: {}", sql);
+        let incomplete = sqlx::query_as::<_, Self::NonActive>(&sql);
+        let complete = self.complete_query(incomplete);
+        let r = complete
+            .fetch_one(exec)
             .await;
-        match q {
-            Ok(_) => Ok(true),
+        match r {
+            Ok(v) => Ok(Some(v)),
             Err(e) if e.as_database_error()
                 .and_then(|d| d.code()) == Some(std::borrow::Cow::Borrowed("23505")) => {
                 // 23505 = unique_violation
-                Ok(false)
+                Ok(None)
             }
             Err(e) => Err(e.into())
         }
     }
-
-    async fn insert_update<'e, E>(self, exec: E) -> Result<(), sqlx::Error>
-    where
-        E: Executor<'e, Database = {{db}}>,
-        for<'q> <{{db}} as sqlx::Database>::Arguments<'q>: Default + sqlx::IntoArguments<'q, {{db}}>,
-    {
-        let sql = SqlBuilder::<{{db}}, Self>::insert_on_conflict_update();
-        sqlx::query(&sql)
-            {{#each ../table.fields}}
-            .bind(&self.{{name}})
-            {{/each}}
-            .execute(exec)
+    async fn upsert<'e,E>(self, exec: E) -> Result<Option<Self::NonActive>, anyhow::Error> 
+    where E: Executor<'e, Database = {{db}}> ,for<'q> <{{db}} as sqlx::Database>::Arguments<'q> :Default+sqlx::IntoArguments<'q, {{db}}>  {
+        let sql = <Self as SqlBuilder<{{db}}>>::upsert_for(&self)?;
+        tracing::debug!("Upsert sql: {}", sql);
+        let incomplete = sqlx::query_as::<_, Self::NonActive>(&sql);
+        let complete = self.complete_query(incomplete);
+        let r = complete
+            .fetch_optional(exec)
             .await?;
-        Ok(())
+        Ok(r)
+    }
+    async fn update<'e,E>(self, exec: E) -> Result<Option<Self::NonActive>, anyhow::Error> 
+    where E: Executor<'e, Database = {{db}}> ,for<'q> <{{db}} as sqlx::Database>::Arguments<'q> :Default+sqlx::IntoArguments<'q, {{db}}>  {
+        let sql = <Self as SqlBuilder<{{db}}>>::update_for(&self)?;
+        tracing::debug!("Update sql: {}", sql);
+        let incomplete = sqlx::query_as::<_, Self::NonActive>(&sql);
+        let complete = self.complete_query(incomplete);
+        let r = complete
+            .fetch_optional(exec)
+            .await?;
+        Ok(r)
     }
 
-    async fn select<'e, E>(exec: E) -> Result<Vec<Self>, sqlx::Error>
+    async fn select_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> Result<Option<Self::NonActive>, anyhow::Error>
     where
-        E: Executor<'e, Database = {{db}}>,
-        Self: for<'r> FromRow<'r, <{{db}} as sqlx::Database>::Row>
+        E: Executor<'e, Database = {{db}}>
     {
-        let sql = SqlBuilder::<{{db}}, Self>::select_all();
-        let recs = sqlx::query_as::<_, Self>(&sql)
-            .fetch_all(exec)
-            .await?;
-        Ok(recs)
-    }
-
-    async fn select_by_pk<'e, E>(
-        pk: &Self::TypePK,
-        exec: E,
-    ) -> Result<Option<Self>, sqlx::Error>
-    where
-        E: Executor<'e, Database = {{db}}>,
-        Self: for<'r> FromRow<'r, <{{db}} as sqlx::Database>::Row>,
-    {
-        let sql = SqlBuilder::<{{db}}, Self>::select_by_pk();
-        let rec = sqlx::query_as::<_, Self>(&sql)
+        let sql = <Self as SqlBuilder<{{db}}>>::select_by_pk();
+        let r = sqlx::query_as::<_, Self::NonActive>(&sql)
             .bind(pk)
             .fetch_optional(exec)
             .await?;
-        Ok(rec)
+        Ok(r)
     }
-    
-    async fn delete<'e, E>(exec: E) -> Result<bool, sqlx::Error>
+
+    async fn delete_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> Result<Option<Self::NonActive>, anyhow::Error>
     where
         E: Executor<'e, Database = {{db}}>
     {
-        let sql = SqlBuilder::<{{db}}, Self>::delete_all();
-        let r = sqlx::query(&sql)
-            .execute(exec)
-            .await?;
-        Ok(r.rows_affected() != 0)
-    }
-    
-    async fn delete_by_pk<'e, E>(pk: &Self::TypePK, exec: E) -> Result<bool, sqlx::Error>
-    where
-        E: Executor<'e, Database = {{db}}>
-    {
-        let sql = SqlBuilder::<{{db}}, Self>::delete_by_pk();
-        let r = sqlx::query(&sql)
+        let sql = <Self as SqlBuilder<{{db}}>>::delete_by_pk();
+        let r = sqlx::query_as::<_, Self::NonActive>(&sql)
             .bind(pk)
-            .execute(exec)
+            .fetch_optional(exec)
             .await?;
-        Ok(r.rows_affected() != 0)
+        Ok(r)
     }
     
-    async fn count<'e, E>(exec: E) -> Result<i64, sqlx::Error>
+    async fn count<'e, E>(exec: E) -> Result<i64, anyhow::Error>
     where
         E: Executor<'e, Database = {{db}}> {
         use sqlx::Row;
-        let sql = SqlBuilder::<{{db}}, Self>::count();
+        let sql = <Self as SqlBuilder<{{db}}>>::count();
         let rec = sqlx::query(&sql)
             .fetch_one(exec)
-            .await?;
-        Ok(rec.get(0))
+            .await?.get(0);
+        Ok(rec)
     }
 }
 {{/each}}
