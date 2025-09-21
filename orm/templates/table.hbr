@@ -3,6 +3,7 @@ use sqlx::{Executor, FromRow};
 use sqlx::query::QueryAs;
 use orm::prelude::*;
 use sqlx::Pool;
+use sqlx::types::*;
 
 #[derive(Clone, Debug, FromRow)]
 pub struct {{snakeToPascal table.name}} {
