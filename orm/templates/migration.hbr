@@ -19,19 +19,19 @@ DROP TABLE {{this.schema}}.{{this.name}};
     {{/if}}
 
     {{!-- Nullability change --}}
-    {{#if nullable}}
+    {{#unless (eq nullable null)}}
     ALTER TABLE {{../schema}}.{{../name}}
       ALTER COLUMN {{name}} {{#if (eq nullable true)}}DROP NOT NULL{{else}}SET NOT NULL{{/if}};
-    {{/if}}
+    {{/unless}}
 
     {{!-- Default change --}}
-    {{#if default}}
+    {{#unless (eq default null)}}
     ALTER TABLE {{../schema}}.{{../name}}
       ALTER COLUMN {{name}} {{#if default}}SET DEFAULT {{default}}{{else}}DROP DEFAULT{{/if}};
-    {{/if}}
+    {{/unless}}
 
     {{!-- Unique change --}}
-    {{#if is_unique}}
+    {{#unless (eq is_unique null)}}
       {{#if (eq is_unique true)}}
       ALTER TABLE {{../schema}}.{{../name}}
         ADD CONSTRAINT {{../name}}_{{name}}_unique UNIQUE ({{name}});
@@ -39,10 +39,10 @@ DROP TABLE {{this.schema}}.{{this.name}};
       ALTER TABLE {{../schema}}.{{../name}}
         DROP CONSTRAINT IF EXISTS {{../name}}_{{name}}_unique;
       {{/if}}
-    {{/if}}
+    {{/unless}}
 
     {{!-- Primary key change --}}
-    {{#if pk}}
+    {{#unless (eq pk null)}}
       {{#if (eq pk true)}}
       ALTER TABLE {{../schema}}.{{../name}}
         ADD PRIMARY KEY ({{name}});
@@ -50,7 +50,7 @@ DROP TABLE {{this.schema}}.{{this.name}};
       ALTER TABLE {{../schema}}.{{../name}}
         DROP CONSTRAINT {{../name}}_pkey;
       {{/if}}
-    {{/if}}
+    {{/unless}}
   {{/each}}
 
   {{!-- New fields --}}
