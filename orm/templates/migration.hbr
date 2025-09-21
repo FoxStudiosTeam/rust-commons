@@ -38,6 +38,7 @@ DROP TABLE {{this.schema}}.{{this.name}};
       {{else}}
       ALTER TABLE {{../schema}}.{{../name}}
         DROP CONSTRAINT IF EXISTS {{../name}}_{{name}}_unique;
+        DROP CONSTRAINT IF EXISTS {{../name}}_{{name}}_key;
       {{/if}}
     {{/unless}}
 
