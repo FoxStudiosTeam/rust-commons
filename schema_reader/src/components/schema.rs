@@ -15,7 +15,7 @@ pub struct RawYamlSchema {
 }
 
 impl RawYamlSchema {
-    fn flatten(self) -> Result<Schema> {
+    pub fn flatten(self) -> Result<Schema> {
         let tables: HashMap<String, RawTable> = self.tables.into_iter().map(|t| (t.name.clone(), t)).collect();
         let mut flatten_tables: HashMap<String, Table> = Default::default();
 
@@ -55,7 +55,7 @@ impl RawYamlSchema {
         Ok(Schema { tables: flatten_tables, types: self.types, type_mapping: TypeMapping::Rust })
     }
 
-    fn from_dir<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub fn from_dir<P: AsRef<Path>>(path: P) -> Result<Self> {
         let mut result = Self::default();
         for entry in fs::read_dir(&path)? {
             let e: Result<()> = (||{
@@ -72,11 +72,11 @@ impl RawYamlSchema {
         }
         Ok(result)
     }
-    fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let content = fs::read_to_string(path.as_ref())?;
         Ok(serde_yaml::from_str(&content)?)
     }
-    fn extend(&mut self, schema: Self) {
+    pub fn extend(&mut self, schema: Self) {
         self.tables.extend(schema.tables);
         self.types.extend(schema.types);
     }
