@@ -8,7 +8,7 @@ use tracing::{error, warn};
 use crate::prelude::{RawTable, RenderScheme, Table, Type};
 
 #[derive(Clone, Deserialize, Default, Debug)]
-struct RawYamlSchema {
+pub struct RawYamlSchema {
     pub tables: Vec<RawTable>,
     #[serde(default)]
     pub types: HashMap<String, Type>,
