@@ -89,6 +89,28 @@ pub struct Schema {
     type_mapping: TypeMapping,
 }
 
+impl Schema {
+    pub fn filter(self, schema: &str) -> Self {
+        let tables = self.tables.into_iter()
+            .filter(|(_k, v)| v.schema == schema)
+            .collect();
+        Self { tables, ..self }
+    }
+
+    pub fn split_by_schema(self) -> HashMap<String, Self> {
+        let t = self.tables;
+        let mut result: HashMap<String, Schema> = HashMap::new();
+        for (k, v) in t {
+            result.entry(v.schema.clone()).or_insert_with(|| Schema{
+                type_mapping: self.type_mapping.clone(), 
+                types: self.types.clone(), 
+                ..Default::default()}
+            ).tables.insert(k, v);
+        }
+        result
+    }
+}
+
 #[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq, Eq, Hash)]
 pub enum TypeMapping {
     #[default]
