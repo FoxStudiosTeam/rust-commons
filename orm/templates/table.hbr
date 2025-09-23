@@ -6,13 +6,6 @@ use orm::prelude::*;
 use sqlx::Pool;
 use sqlx::types::*;
 
-#[derive(Clone, Debug, FromRow)]
-pub struct {{snakeToPascal table.name}} {
-    {{#each table.fields}}
-    pub {{name}}: {{#if nullable}}Option<{{type_str}}>{{else}}{{type_str}}{{/if}},
-    {{/each}}
-}
-
 impl {{snakeToPascal table.name}} {
     pub fn into_active(self) -> Active{{snakeToPascal table.name}} {
         Active{{snakeToPascal table.name}} {
