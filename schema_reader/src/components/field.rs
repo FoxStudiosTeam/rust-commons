@@ -28,8 +28,6 @@ pub struct TypedField {
     pub default: Option<String>,
     pub nullable: bool,
     pub is_unique: bool,
-    #[cfg(feature = "utoipa_gen")]
-    pub utoipa_example: String,
 }
 
 impl Field {
@@ -45,8 +43,6 @@ impl Field {
                 is_unique: self.is_unique.unwrap_or(false),
                 default: self.default.clone(),
                 nullable: self.nullable.unwrap_or(false),
-                #[cfg(feature = "utoipa_gen")]
-                utoipa_example: field_type.utoipa_example.clone(),
             }
         )
     }

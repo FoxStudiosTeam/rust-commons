@@ -21,7 +21,6 @@ impl {{snakeToPascal table.name}} {
 #[derive(Clone, Debug, FromRow)]
 pub struct {{snakeToPascal table.name}} {
     {{#each table.fields}}
-    {{#unless (eq type_str null)}}#[example = "{{utoipa_example}}"]{{/unless}}
     pub {{name}}: {{#if nullable}}Option<{{type_str}}>{{else}}{{type_str}}{{/if}},
     {{/each}}
 }
