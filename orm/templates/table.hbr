@@ -16,19 +16,12 @@ impl {{snakeToPascal table.name}} {
     }
 }
 
-#[cfg(not(feature="serde"))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "utoipa_gen", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, FromRow)]
 pub struct {{snakeToPascal table.name}} {
     {{#each table.fields}}
-    pub {{name}}: {{#if nullable}}Option<{{type_str}}>{{else}}{{type_str}}{{/if}},
-    {{/each}}
-}
-
-#[cfg(feature="serde")]
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Debug, FromRow)]
-pub struct {{snakeToPascal table.name}} {
-    {{#each table.fields}}
+    {{#unless (eq type_str null)}}#[example = "{{utoipa_example}}"]{{/unless}}
     pub {{name}}: {{#if nullable}}Option<{{type_str}}>{{else}}{{type_str}}{{/if}},
     {{/each}}
 }

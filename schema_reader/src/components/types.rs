@@ -9,6 +9,9 @@ pub struct Type {
     pub rust_type: String,
     #[serde(rename = "pgType")]
     pub pg_type: String,
+    #[cfg(feature = "utoipa_gen")]
+    #[serde(rename = "utoipaExample")]
+    pub utoipa_example: String,
 }
 
 impl Type {
@@ -17,5 +20,5 @@ impl Type {
             TypeMapping::Rust => &self.rust_type,
             TypeMapping::Pg => &self.pg_type,
         }
-    }    
+    }
 }

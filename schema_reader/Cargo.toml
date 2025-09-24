@@ -3,6 +3,10 @@ name = "schema_reader"
 version = "0.2.0"
 edition = "2024"
 
+[features]
+default = ["utoipa_gen"]
+utoipa_gen = []
+
 [dependencies]
 anyhow = "1.0.99"
 handlebars = "6.3.2"
