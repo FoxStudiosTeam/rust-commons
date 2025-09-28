@@ -25,49 +25,74 @@ pub struct LatestMigrationState {
     state: Schema,
 }
 
-pub fn generate_migration<P: AsRef<std::path::Path>>(mut schema : Schema, out_dir: P, migration_name: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn generate_migration<P: AsRef<std::path::Path>>(
+    mut schema: Schema,
+    out_dir: P,
+    migration_name: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut reg = handlebars::Handlebars::new();
     reg.register_template_string("migration_template", MIGRATION_TEMPLATE)?;
     schema.change_mappings(TypeMapping::Pg)?;
+
     let state_path = out_dir.as_ref().join("latest").with_extension("migration_state");
-    
+
     let mut prev_state = std::fs::read(&state_path)
         .inspect_err(|_e| tracing::info!("No previous state found, starting from scratch"))
         .ok()
-        .and_then(|v| 
-            bincode::serde::decode_from_slice::<LatestMigrationState, _>(&v, bincode::config::standard()).ok()
-                .map(|v|v.0)
-        )
+        .and_then(|v| {
+            serde_json::from_slice::<LatestMigrationState>(&v)
+                .map_err(|_| ())
+                .or_else(|_| {
+                    bincode::serde::decode_from_slice::<LatestMigrationState, _>(
+                        &v,
+                        bincode::config::standard(),
+                    )
+                    .map(|v| v.0)
+                })
+                .ok()
+        })
         .unwrap_or_default();
+
     if schema == prev_state.state {
         tracing::info!("No changes in schema");
         return Ok(());
     }
+
     if prev_state.latest != 0 {
         std::fs::rename(
-            &state_path, 
+            &state_path,
             out_dir
                 .as_ref()
                 .join(format!("V{}", prev_state.latest))
-                .with_extension("migration_state")
-            ).expect("Can't rename migration file");
+                .with_extension("migration_state"),
+        )
+        .expect("Can't rename migration file");
     }
+
     prev_state.latest += 1;
     let diff = prev_state.state.difference(&schema)?;
     prev_state.state = schema;
     let rendered = reg.render("migration_template", &diff)?;
     std::fs::write(
-        out_dir.as_ref().join(format!("V{}__{}.sql", 
-        prev_state.latest, 
-        migration_name.unwrap_or("migration"))), 
-        rendered
+        out_dir.as_ref().join(format!(
+            "V{}__{}.sql",
+            prev_state.latest,
+            migration_name.unwrap_or("migration")
+        )),
+        rendered,
     )?;
     tracing::info!("Migration generated!");
-    let encoded = bincode::serde::encode_to_vec(&prev_state, bincode::config::standard()).inspect_err(|e| tracing::error!("Can't encode state: {}", e))?;
+
+    let encoded = serde_json::to_vec_pretty(&prev_state)
+        .inspect_err(|e| tracing::error!("Can't encode state as JSON: {}", e))?;
     std::fs::write(state_path, encoded)?;
-    tracing::info!("Latest state saved!");
+    tracing::info!("Latest state saved (JSON)!");
+
     Ok(())
 }
+
+
+
 
 pub fn generate_rust_bindings<P: AsRef<std::path::Path>>(schema : &Schema, out_dir: P) -> Result<(), Box<dyn std::error::Error>>{
     let mut reg = handlebars::Handlebars::new();
