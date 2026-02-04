@@ -69,6 +69,14 @@ where
     fn count<'e, E>(exec: E) -> impl std::future::Future<Output = Result<i64, anyhow::Error>> + Send
     where
         E: Executor<'e, Database = DB>;
+    fn insert_many_similar<'e, E, I>(items: I, exec: E) -> impl std::future::Future<Output = Result<Vec<Self::NonActive>, anyhow::Error>> + Send
+    where
+        E: Executor<'e, Database = DB>,
+        I: IntoIterator<Item = Self> + Send,;
+    fn update_many_similar<'e, E, I>(items: I, exec: E) -> impl std::future::Future<Output = Result<Vec<Self::NonActive>, anyhow::Error>> + Send
+    where
+        E: Executor<'e, Database = DB>,
+        I: IntoIterator<Item = Self> + Send,;
 }
 
 
@@ -164,6 +172,16 @@ where
     }
     pub fn count(self) -> impl std::future::Future<Output = Result<i64, anyhow::Error>> + Send {
         T::count(self.executor)
+    }
+    pub fn insert_many_similar(self, data: Vec<T>) -> impl std::future::Future<Output = Result<Vec<<T as ModelOps<DB>>::NonActive>, anyhow::Error>>
+    where
+        T: Send {
+        T::insert_many_similar(data, self.executor)
+    }
+    pub fn update_many_similar(self, data: Vec<T>) -> impl std::future::Future<Output = Result<Vec<<T as ModelOps<DB>>::NonActive>, anyhow::Error>>
+    where
+        T: Send {
+        T::update_many_similar(data, self.executor)
     }
 }
 

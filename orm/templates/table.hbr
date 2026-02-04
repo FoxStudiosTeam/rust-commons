@@ -147,6 +147,121 @@ impl ModelOps<{{db}}> for Active{{snakeToPascal ../table.name}}
             Err(e) => Err(e.into())
         }
     }
+
+    async fn update_many_similar<'e, E, I>(items: I, exec: E) -> Result<Vec<Self::NonActive>, anyhow::Error>
+    where
+        E: Executor<'e, Database = {{db}}>,
+        I: IntoIterator<Item = Active{{snakeToPascal ../table.name}}> + Send,
+    {
+        let items: Vec<_> = items.into_iter().collect();
+        if items.is_empty() {
+            return Ok(vec![]);
+        }
+        let first = &items[0];
+        let mut columns = vec![];
+
+        {{#each ../table.fields}}
+        if let Set(_) = &first.{{name}} {tracing::debug!("Added {{name}}"); columns.push("{{name}}");}
+        {{/each}}
+
+        let table = format!("{}.{}", Self::TABLE_SCHEMA, Self::TABLE_NAME);
+        let pk_col = Self::pk_column();
+
+        // Создаем VALUES для временной таблицы
+        let mut values = vec![];
+        let mut param_idx = 1;
+        for _ in &items {
+            let row: Vec<String> = columns.iter().map(|_| {
+                let ph = format!("${}", param_idx);
+                param_idx += 1;
+                ph
+            }).collect();
+            values.push(format!("({})", row.join(", ")));
+        }
+
+        // Формируем SET-часть для UPDATE
+        let update_clauses: Vec<_> = columns
+            .iter()
+            .filter(|&&c| c != pk_col)
+            .map(|c| format!("{} = v.{}", c, c))
+            .collect();
+        
+        let sql = format!(
+            "UPDATE {} AS t SET {} \
+            FROM (VALUES {}) AS v({}) \
+            WHERE t.{} = v.{} \
+            RETURNING *",
+            table,
+            update_clauses.join(", "),
+            values.join(", "),
+            columns.join(", "),
+            pk_col,
+            pk_col
+        );
+
+        // Построение запроса
+        let mut query = sqlx::query_as::<_, Self::NonActive>(&sql);
+        for item in items {
+            {{#each ../table.fields}}
+            if let Set(v) = item.{{name}} {
+                query = query.bind(v);
+            }
+            {{/each}}
+        }
+
+        let res = query.fetch_all(exec).await?;
+        Ok(res)
+    }
+
+    async fn insert_many_similar<'e, E, I>(items: I, exec: E) -> Result<Vec<Self::NonActive>, anyhow::Error>
+    where
+        E: Executor<'e, Database = {{db}}>,
+        I: IntoIterator<Item = Active{{snakeToPascal ../table.name}}> + Send,
+    {
+        let items: Vec<_> = items.into_iter().collect();
+        if items.is_empty() {
+            return Ok(vec![]);
+        }
+        let first = &items[0];
+        let mut columns = vec![];
+
+        {{#each ../table.fields}}
+        if let Set(_) = &first.{{name}} {tracing::debug!("Added {{name}}"); columns.push("{{name}}");}
+        {{/each}}
+
+        let table = format!("{}.{}", Self::TABLE_SCHEMA, Self::TABLE_NAME);
+        let mut sql = format!("INSERT INTO {} ({}) VALUES ", table, columns.join(", "));
+
+        // placeholders ($1,$2,...) для каждого элемента
+        let mut placeholders = Vec::new();
+        let mut param_idx = 1;
+        for _ in &items {
+            let row_placeholders: Vec<String> = columns.iter().map(|_| {
+                let ph = format!("${}", param_idx);
+                param_idx += 1;
+                ph
+            }).collect();
+            placeholders.push(format!("({})", row_placeholders.join(", ")));
+        }
+        sql.push_str(&placeholders.join(", "));
+
+        sql.push_str(&format!(" ON CONFLICT DO NOTHING"));
+
+        // Построение запроса
+        let mut query = sqlx::query_as::<_, Self::NonActive>(&sql);
+        for item in items {
+            {{#each ../table.fields}}
+            if let Set(v) = item.{{name}} {
+                query = query.bind(v);
+            }
+            {{/each}}
+        }
+
+        let res = query.fetch_all(exec).await?;
+        Ok(res)
+    }
+
+
     async fn upsert<'e,E>(self, exec: E) -> Result<Option<Self::NonActive>, anyhow::Error> 
     where E: Executor<'e, Database = {{db}}> ,for<'q> <{{db}} as sqlx::Database>::Arguments<'q> :Default+sqlx::IntoArguments<'q, {{db}}>  {
         let sql = <Self as SqlBuilder<{{db}}>>::upsert_for(&self)?;
