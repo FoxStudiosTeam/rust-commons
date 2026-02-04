@@ -173,13 +173,15 @@ where
     pub fn count(self) -> impl std::future::Future<Output = Result<i64, anyhow::Error>> + Send {
         T::count(self.executor)
     }
-    pub fn insert_many_similar(self, data: Vec<T>) -> impl std::future::Future<Output = Result<Vec<<T as ModelOps<DB>>::NonActive>, anyhow::Error>>
+    pub fn insert_many_similar<I>(self, data: I) -> impl std::future::Future<Output = Result<Vec<<T as ModelOps<DB>>::NonActive>, anyhow::Error>>
     where
+        I: IntoIterator<Item = T> + Send,
         T: Send {
         T::insert_many_similar(data, self.executor)
     }
-    pub fn update_many_similar(self, data: Vec<T>) -> impl std::future::Future<Output = Result<Vec<<T as ModelOps<DB>>::NonActive>, anyhow::Error>>
+    pub fn update_many_similar<I>(self, data: I) -> impl std::future::Future<Output = Result<Vec<<T as ModelOps<DB>>::NonActive>, anyhow::Error>>
     where
+        I: IntoIterator<Item = T> + Send,
         T: Send {
         T::update_many_similar(data, self.executor)
     }
