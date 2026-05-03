@@ -32,6 +32,4 @@ macro_rules! wrappers {
             }
         )*
     };
-
-
 }

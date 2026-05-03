@@ -111,7 +111,7 @@ macro_rules! env_config {
             }
 
             $glob_vis static $glob : $crate::helpers::env::once_cell::sync::Lazy<$struct> = $crate::helpers::env::once_cell::sync::Lazy::new(|| {
-                $crate::helpers::env::dotenvy::from_filename_override($filename).ok(); // only for develop
+                $crate::helpers::env::dotenvy::from_filename_override($filename).ok();
                 $struct::new()
             });
 

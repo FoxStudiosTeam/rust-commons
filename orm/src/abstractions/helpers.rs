@@ -138,7 +138,7 @@ where T: TableSelector
         let mut pk_col = None;
         let mut pk_idx = 0;
         for col in cols.iter() {
-            tracing::info!("Column: {}", col.name);
+            tracing::debug!("Column: {}", col.name);
             if col.is_primary {
                 pk_col = Some(col.name);
                 pk_idx = idx;

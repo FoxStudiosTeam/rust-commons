@@ -69,6 +69,14 @@ where
     fn count<'e, E>(exec: E) -> impl std::future::Future<Output = Result<i64, anyhow::Error>> + Send
     where
         E: Executor<'e, Database = DB>;
+    fn insert_many_similar<'e, E, I>(items: I, exec: E) -> impl std::future::Future<Output = Result<Vec<Self::NonActive>, anyhow::Error>> + Send
+    where
+        E: Executor<'e, Database = DB>,
+        I: IntoIterator<Item = Self> + Send,;
+    fn update_many_similar<'e, E, I>(items: I, exec: E) -> impl std::future::Future<Output = Result<Vec<Self::NonActive>, anyhow::Error>> + Send
+    where
+        E: Executor<'e, Database = DB>,
+        I: IntoIterator<Item = Self> + Send,;
 }
 
 
@@ -115,10 +123,10 @@ where
         data.save(self.executor, mode)
     }
 
-    pub fn select<'q>(&'e mut self, query: &str) -> DBSelectorInteraction<'q, 'e, DB, E, T>
+    pub fn select<'q>(&'e mut self, query: &str) -> DBSelectorInteraction<'q, 'e, DB, E, <T as ModelOps<DB>>::NonActive>
     where 
         'e: 'q, 
-        for<'r> T: FromRow<'r, <DB as sqlx::Database>::Row>
+        for<'r> <T as ModelOps<DB>>::NonActive: FromRow<'r, <DB as sqlx::Database>::Row>
     {   
         self.interaction_builder("select", query)
     }
@@ -131,10 +139,10 @@ where
         self.interaction_builder("select", query)
     }
 
-    pub fn delete<'q>(&'e mut self, query: &str) -> DBSelectorInteraction<'q, 'e, DB, E, T>
+    pub fn delete<'q>(&'e mut self, query: &str) -> DBSelectorInteraction<'q, 'e, DB, E, <T as ModelOps<DB>>::NonActive>
     where 
         'e: 'q, 
-        for<'r> T: FromRow<'r, <DB as sqlx::Database>::Row>
+        for<'r> <T as ModelOps<DB>>::NonActive: FromRow<'r, <DB as sqlx::Database>::Row>
     {
         self.interaction_builder("delete", query)
     }
@@ -164,6 +172,18 @@ where
     }
     pub fn count(self) -> impl std::future::Future<Output = Result<i64, anyhow::Error>> + Send {
         T::count(self.executor)
+    }
+    pub fn insert_many_similar<I>(self, data: I) -> impl std::future::Future<Output = Result<Vec<<T as ModelOps<DB>>::NonActive>, anyhow::Error>>
+    where
+        I: IntoIterator<Item = T> + Send,
+        T: Send {
+        T::insert_many_similar(data, self.executor)
+    }
+    pub fn update_many_similar<I>(self, data: I) -> impl std::future::Future<Output = Result<Vec<<T as ModelOps<DB>>::NonActive>, anyhow::Error>>
+    where
+        I: IntoIterator<Item = T> + Send,
+        T: Send {
+        T::update_many_similar(data, self.executor)
     }
 }
 

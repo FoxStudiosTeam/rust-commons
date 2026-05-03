@@ -17,5 +17,5 @@ impl Type {
             TypeMapping::Rust => &self.rust_type,
             TypeMapping::Pg => &self.pg_type,
         }
-    }    
+    }
 }

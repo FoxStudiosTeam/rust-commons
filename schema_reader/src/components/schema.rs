@@ -8,14 +8,14 @@ use tracing::{error, warn};
 use crate::prelude::{RawTable, RenderScheme, Table, Type};
 
 #[derive(Clone, Deserialize, Default, Debug)]
-struct RawYamlSchema {
+pub struct RawYamlSchema {
     pub tables: Vec<RawTable>,
     #[serde(default)]
     pub types: HashMap<String, Type>,
 }
 
 impl RawYamlSchema {
-    fn flatten(self) -> Result<Schema> {
+    pub fn flatten(self) -> Result<Schema> {
         let tables: HashMap<String, RawTable> = self.tables.into_iter().map(|t| (t.name.clone(), t)).collect();
         let mut flatten_tables: HashMap<String, Table> = Default::default();
 
@@ -55,7 +55,7 @@ impl RawYamlSchema {
         Ok(Schema { tables: flatten_tables, types: self.types, type_mapping: TypeMapping::Rust })
     }
 
-    fn from_dir<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub fn from_dir<P: AsRef<Path>>(path: P) -> Result<Self> {
         let mut result = Self::default();
         for entry in fs::read_dir(&path)? {
             let e: Result<()> = (||{
@@ -72,11 +72,11 @@ impl RawYamlSchema {
         }
         Ok(result)
     }
-    fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let content = fs::read_to_string(path.as_ref())?;
         Ok(serde_yaml::from_str(&content)?)
     }
-    fn extend(&mut self, schema: Self) {
+    pub fn extend(&mut self, schema: Self) {
         self.tables.extend(schema.tables);
         self.types.extend(schema.types);
     }
@@ -87,6 +87,28 @@ pub struct Schema {
     tables: HashMap<String, Table>,
     types: HashMap<String, Type>,
     type_mapping: TypeMapping,
+}
+
+impl Schema {
+    pub fn filter(self, schema: &str) -> Self {
+        let tables = self.tables.into_iter()
+            .filter(|(_k, v)| v.schema == schema)
+            .collect();
+        Self { tables, ..self }
+    }
+
+    pub fn split_by_schema(self) -> HashMap<String, Self> {
+        let t = self.tables;
+        let mut result: HashMap<String, Schema> = HashMap::new();
+        for (k, v) in t {
+            result.entry(v.schema.clone()).or_insert_with(|| Schema{
+                type_mapping: self.type_mapping.clone(), 
+                types: self.types.clone(), 
+                ..Default::default()}
+            ).tables.insert(k, v);
+        }
+        result
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq, Eq, Hash)]
